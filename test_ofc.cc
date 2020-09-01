@@ -110,6 +110,7 @@ main (int argc, char *argv[])
 	for (int i = 0; i < 10; i++){
 		ofRouterPorts[i] = NetDeviceContainer ();
 	}
+	
 	// アクセス層
 	for (int i = 0; i < acc_max_nw; i++){
 			for (int j = 0; j < acc_max_node - 1; j++){
@@ -250,10 +251,12 @@ main (int argc, char *argv[])
 				anim.SetConstantPosition(acc_nw_nodes[i].Get(j), x, y);
 				anim.UpdateNodeSize(acc_nw_nodes[i].Get(j)->GetId(), x_size, y_size);
 				anim.UpdateNodeColor(acc_nw_nodes[i].Get(j)->GetId(), 0, 255, 0);
+				anim.UpdateNodeDescription (acc_nw_nodes[i].Get(j), "access1");
 				x = x + 10;
 			}
 			anim.SetConstantPosition(acc_nw_nodes[i].Get(acc_max_node - 1), x - 20, y - 50);
 			anim.UpdateNodeSize(acc_nw_nodes[i].Get(acc_max_node - 1)->GetId(), x_size, y_size);
+			anim.UpdateNodeDescription (acc_nw_nodes[i].Get(acc_max_node - 1), "access2");
 			x = x + 10;
 	}
 	// コア層
@@ -261,18 +264,20 @@ main (int argc, char *argv[])
 	for(int i = 0; i < cor_max_nw; i++){
 		for(int j = cor_max_node/2; j < cor_max_node; j++){
 			anim.SetConstantPosition(cor_nw_nodes[i].Get(j), x, y - 100);
-				anim.UpdateNodeSize(cor_nw_nodes[i].Get(j)->GetId(), x_size, y_size);
+			anim.UpdateNodeSize(cor_nw_nodes[i].Get(j)->GetId(), x_size, y_size);
+			anim.UpdateNodeDescription (cor_nw_nodes[i].Get(j), "core");
 			x = x + 40;
 		}
 	}
 	// 対外層
 	x = 50;
 	for(int i = 0; i < exc_max_nw; i++){
-			for(int j = cor_exc_nodes_num; j < exc_max_node; j++){
-				anim.SetConstantPosition(exc_nw_nodes[i].Get(j), x, y - 150);
-				anim.UpdateNodeSize(exc_nw_nodes[i].Get(j)->GetId(), x_size, y_size);
-				x = x + 40;
-			}
+		for(int j = cor_exc_nodes_num; j < exc_max_node; j++){
+			anim.SetConstantPosition(exc_nw_nodes[i].Get(j), x, y - 150);
+			anim.UpdateNodeSize(exc_nw_nodes[i].Get(j)->GetId(), x_size, y_size);
+			anim.UpdateNodeDescription (exc_nw_nodes[i].Get(j), "taigai");
+			x = x + 40;
+		}
 	}
 	// OFController
 	anim.SetConstantPosition(controllerNode, 70, y - 200);
