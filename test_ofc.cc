@@ -12,7 +12,7 @@
 #include <ns3/flow-monitor-module.h>
 #include <regex>
 
-#define PORT		50000
+#define PORT		30
 
 #define PROG_DIR	"/media/sf_ns-3_ubuntu18.04/kakushin/openflow_routing/"
 
@@ -196,39 +196,19 @@ main (int argc, char *argv[])
 	ipv4helpr.SetBase ("10.1.1.0", "255.255.255.0");
 	hostIpIfaces = ipv4helpr.Assign (hostDevices);
 
-	// アプリケーション設定
-	UdpServerHelper server(PORT);
-	ApplicationContainer app1;
-	// server_nodes = { 10.1.1.11, 10.1.1.7};
-	std::vector<int> server_nodes = {4, 10};
-	std::vector<int> client_nodes = {0, 2, 6, 8};
-	// 受信設定
-	for(size_t i = 0; i < server_nodes.size(); i++){
-		app1.Add(server.Install(ueNodes.Get(server_nodes[i])));
-	}
-	//app1.Start(Seconds(start + 0.1));
-	//app1.Stop(Seconds(stop - 0.1));
-	// 送信設定
-	int cnt = 0;
-	for(size_t i = 0; i < client_nodes.size(); i++){
-		if(cnt < 2){
-			UdpClientHelper client(hostIpIfaces.GetAddress(10), PORT);
-			client.SetAttribute("MaxPackets", UintegerValue((stop - start)*(packet_rate/4)));
-			client.SetAttribute("Interval", TimeValue(Seconds(1/(packet_rate/4))));
-			client.SetAttribute("PacketSize", UintegerValue(1460));
-			app1.Add(client.Install(ueNodes.Get(client_nodes[i])));
-		}else{
-			UdpClientHelper client(hostIpIfaces.GetAddress(4), PORT);
-			client.SetAttribute("MaxPackets", UintegerValue((stop - start)*(packet_rate/4)));
-			client.SetAttribute("Interval", TimeValue(Seconds(1/(packet_rate/4))));
-			client.SetAttribute("PacketSize", UintegerValue(1460));
-			app1.Add(client.Install(ueNodes.Get(client_nodes[i])));
-		}
-		cnt++;
-	}
-	//app1 = client.Install(acc_nw_nodes[0].Get(0));
-	app1.Start(Seconds(start));
-	app1.Stop(Seconds(stop));
+	UdpServerHelper Server1 (PORT);
+    ApplicationContainer serverApps1 = Server1.Install(ueNodes.Get(4));
+    serverApps1.Start (simStart);
+    serverApps1.Stop (simStop);
+
+    UdpClientHelper client(hostIpIfaces.GetAddress(4),PORT);
+	client.SetAttribute("MaxPackets", UintegerValue((stop - start)*(packet_rate/4)));
+	client.SetAttribute("Interval", TimeValue(Seconds(1/(packet_rate/4))));
+	client.SetAttribute("PacketSize", UintegerValue(1460));
+
+    ApplicationContainer clientApps1 = client.Install (ueNodes.Get (8));
+    clientApps1.Start (simStart);
+    clientApps1.Stop (simStop);
 
 	// Enable datapath stats and pcap traces at ueNodes, switch(es), and controller(s)
 	if (trace)
@@ -1144,4 +1124,3 @@ void KakushinController::PacketOut(struct ofl_msg_packet_in *msg, Ptr<const Remo
 	SendToSwitch (swtch, (struct ofl_msg_header*)&reply, xid);
 	free (a);
 }
-
