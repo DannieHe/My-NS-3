@@ -1,21 +1,3 @@
-/*
- * Network Topology
- * 
- *       P-GW *-----------* server
- *           / \
- *          /   \
- *         /     \
- *        /       \
- *   eNB /         \ eNB
- *      *-----------*
- *      |           |
- *      |           |
- *      *           *
- *      n0          n1
- * 
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -74,11 +56,6 @@ main (int argc, char *argv[])
     double distance = 200.0;    // m
     uint32_t packetSize = 1024; //byte
 
-    // bool disableDl = false;
-    // bool disableUl = false;
-    // bool disablePl = false;
-    
-
     // Command line arguments
     CommandLine cmd;
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
@@ -86,9 +63,6 @@ main (int argc, char *argv[])
     cmd.AddValue ("interPacketInterval", "Inter packet interval", interPacketInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
-    // cmd.AddValue ("disableDl", "Disable downlink data flows", disableDl);
-    // cmd.AddValue ("disableUl", "Disable uplink data flows", disableUl);
-    // cmd.AddValue ("disablePl", "Disable data flows between peer UEs", disablePl);
     cmd.Parse (argc, argv);
 
     ConfigStore inputConfig;
@@ -189,62 +163,7 @@ main (int argc, char *argv[])
     for (uint16_t i = 0; i < src_sink; i++)
     {
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
-        // side effect: the default EPS bearer will be activated
     }
-    // for (uint16_t i = 0; i < numNodes; i++)
-    // {
-    //     std::cout << "IP address : " << ueIpIface.GetAddress(i) << "\n";
-    // }
-
-    /*
-    // Install and start applications on UEs and remote host
-    uint16_t dlPort = 1100;
-    uint16_t ulPort = 2000;
-    uint16_t otherPort = 3000;
-
-    ApplicationContainer clientApps;
-    ApplicationContainer serverApps;
-
-    for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
-    {
-        if (!disableDl)
-        {
-            PacketSinkHelper dlPacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
-            serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get (u)));
-
-            UdpClientHelper dlClient (ueIpIface.GetAddress (u), dlPort);
-            dlClient.SetAttribute ("Interval", TimeValue (interPacketInterval));
-            dlClient.SetAttribute ("MaxPackets", UintegerValue (1000000));
-            clientApps.Add (dlClient.Install (server));
-        }
-
-        if (!disableUl)
-        {
-            ++ulPort;
-            PacketSinkHelper ulPacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ulPort));
-            serverApps.Add (ulPacketSinkHelper.Install (server));
-
-            UdpClientHelper ulClient (serverAddr, ulPort);
-            ulClient.SetAttribute ("Interval", TimeValue (interPacketInterval));
-            ulClient.SetAttribute ("MaxPackets", UintegerValue (1000000));
-            clientApps.Add (ulClient.Install (ueNodes.Get(u)));
-        }
-        if (!disablePl && numNodes > 1)
-        {
-            ++otherPort;
-            PacketSinkHelper packetSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), otherPort));
-            serverApps.Add (packetSinkHelper.Install (ueNodes.Get (u)));
-
-            UdpClientHelper client (ueIpIface.GetAddress (u), otherPort);
-            client.SetAttribute ("Interval", TimeValue (interPacketInterval));
-            client.SetAttribute ("MaxPackets", UintegerValue (1000000));
-            clientApps.Add (client.Install (ueNodes.Get ((u + 1) % numNodes)));
-        }
-    }
-
-    serverApps.Start (MilliSeconds (500));
-    clientApps.Start (MilliSeconds (500));
-    */
 
     UdpServerHelper Server (9);
     ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
@@ -261,11 +180,9 @@ main (int argc, char *argv[])
     clientApps.Stop (simStop);
 
     lteHelper->EnableTraces ();
-    // Uncomment to enable PCAP tracing
-    // p2p.EnablePcapAll("lena-simple-epc-backhaul");
 
 
-    AnimationInterface anim ("my-lte-ver7.xml"); // Mandatory
+    AnimationInterface anim ("my-lte-ver8.xml"); // Mandatory
 
     for (uint32_t i = 0; i < numNodes; i++)
     {

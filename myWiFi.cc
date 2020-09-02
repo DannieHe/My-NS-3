@@ -62,9 +62,9 @@ main (int argc, char *argv[])
     uint16_t src_sink = 2;
     uint16_t sourceNode = 0;
     uint16_t sinkNode = numNodes - 1;
-    Time simTime = Seconds (10.0);
+    Time simTime = Seconds (30.0);
     Time simStart = Seconds (1.0);
-    Time simStop = Seconds (10.0);
+    Time simStop = Seconds (30.0);
     Time interPacketInterval = MilliSeconds (100);
     double distance = 200.0;    // m
     uint32_t packetSize = 1024; // byte
@@ -102,8 +102,11 @@ main (int argc, char *argv[])
     phy.SetChannel (channel.Create ());
 
     WifiHelper wifi;
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211b);
-    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    // wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+                            "DataMode",StringValue ("HtMcs0"),
+                            "ControlMode",StringValue ("HtMcs7"));
 
     WifiMacHelper mac;
     Ssid ssid = Ssid ("Wifi");
@@ -133,7 +136,7 @@ main (int argc, char *argv[])
 
     CsmaHelper csma;
     csma.SetChannelAttribute ("DataRate", StringValue ("100Mbps"));
-    csma.SetChannelAttribute ("Delay", TimeValue (NanoSeconds (6560)));
+    csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (2)));
 
     NetDeviceContainer csmaDev;
     csmaDev = csma.Install (csmaNodes);
@@ -144,18 +147,18 @@ main (int argc, char *argv[])
     for (uint16_t i = 0; i < numNodes; i++)
     {
         if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
+            positionAlloc->Add(Vector(distance * (i / 3), 210, 0));
         }
         else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
+            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 180, 0));
         }
         else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
+            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 240, 0));
         }
     }
     for (uint16_t i = 0; i < src_sink; i++)
     {
-        positionAlloc->Add(Vector(distance * 2 * i + 50, 150, 0));
+        positionAlloc->Add(Vector(distance * 2 * i + 50, 140, 0));
     }
     mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
@@ -165,7 +168,8 @@ main (int argc, char *argv[])
     
     //プロトコルスタックの設定（IPv4かIPv6か決める）
     InternetStackHelper internet;
-    internet.InstallAll ();
+    internet.Install(ueNodes);
+    internet.Install(p2pNodes);
 
     //IPアドレス割り当て
     //右側のノード、AP
@@ -183,13 +187,9 @@ main (int argc, char *argv[])
     apIpIface = address.Assign (apDev);
 
 
-    //std::cout << "IP address : " << leftInterface.GetAddress(0) << "\n";
-    //std::cout << "IP address : " << apIpIface.GetAddress(0) << "\n";
-    //std::cout << "IP address : " << rightInterface.GetAddress(0) << "\n";
-
 
     UdpServerHelper Server (9);
-    ApplicationContainer serverApps = Server.Install(csmaNodes.Get(sinkNode-6));
+    ApplicationContainer serverApps = Server.Install(csmaNodes.Get(sinkNode-5));
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
 
