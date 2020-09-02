@@ -1,11 +1,3 @@
-/*
- *
- * /ns-3.29/my-example.ccより
- * 
- * ofswitch13使用
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -22,8 +14,6 @@
 #include "ns3/socket.h"
 #include <string>
 #include <regex>
-
-//#include "myCsmaOFC.h"
 
 using namespace ns3;
 
@@ -83,8 +73,8 @@ main (int argc, char *argv[])
     Time simStart2 = Seconds (5.0);
     Time simStop2 = Seconds (10.0);
     Time interPacketInterval = MilliSeconds (100);
-    double distance = 200.0;    // m
-    uint32_t packetSize = 1024; //byte
+    double distance = 90.0;    // m
+    uint32_t packetSize = 128; //byte
 
     // Configure command line parameters
     CommandLine cmd;
@@ -137,14 +127,14 @@ main (int argc, char *argv[])
     switches.Create(numNodes);
 
 
-    /*
-     *          OPENFLOW
-     */
     // Use the CsmaHelper to connect host nodes to the switch node
     CsmaHelper csma;
     csma.SetChannelAttribute ("DataRate", DataRateValue (DataRate ("100Mbps")));
     csma.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (2)));
 
+    /*
+     *          OPENFLOW
+     */
     NetDeviceContainer ueDev;
     NetDeviceContainer switchPorts[numNodes];
     for (uint32_t i = 0; i < ueNodes.GetN (); i++)

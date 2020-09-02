@@ -1,11 +1,3 @@
-/*
- *
- * /ns-3.29/my-example.ccより
- * 
- * ofswitch13使用
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -80,8 +72,8 @@ main (int argc, char *argv[])
     Time simStart2 = Seconds (15.0);
     Time simStop2 = Seconds (30.0);
     Time interPacketInterval = MilliSeconds (100);
-    double distance = 200.0;    // m
-    uint32_t packetSize = 1024; //byte
+    double distance = 90.0;    // m
+    uint32_t packetSize = 128; //byte
 
     // Configure command line parameters
     CommandLine cmd;
