@@ -1,11 +1,3 @@
-/*
- *
- * /ns-3.29/my-example.ccより
- * 
- * ofswitch13使用
- * 
- */
-
 #include "ns3/core-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
@@ -22,8 +14,6 @@
 #include "ns3/socket.h"
 #include <string>
 #include <regex>
-
-//#include "myCsmaOFC.h"
 
 using namespace ns3;
 
@@ -80,8 +70,8 @@ main (int argc, char *argv[])
     Time simStart = Seconds (1.0);
     Time simStop = Seconds (10.0);
     Time interPacketInterval = MilliSeconds (100);
-    double distance = 200.0;    // m
-    uint32_t packetSize = 1024; //byte
+    double distance = 90.0;    // m
+    uint32_t packetSize = 128; //byte
 
     // Configure command line parameters
     CommandLine cmd;
@@ -181,37 +171,69 @@ main (int argc, char *argv[])
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-    for (int i = 0; i < numNodes; i++)
-    {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 150, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 120, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 180, 0));
-        }
-    }
-    for (int i = 0; i < numNodes; i++)
-    {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
-        }
-    }
+    // for (int i = 0; i < numNodes; i++)
+    // {
+    //     if (i % 3 == 0){
+    //         positionAlloc->Add(Vector(distance * (i / 3), 150, 0));
+    //     }
+    //     else if (i % 3 == 1){
+    //         positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 120, 0));
+    //     }
+    //     else{
+    //         positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 180, 0));
+    //     }
+    // }
+    // for (int i = 0; i < numNodes; i++)
+    // {
+    //     if (i % 3 == 0){
+    //         positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
+    //     }
+    //     else if (i % 3 == 1){
+    //         positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
+    //     }
+    //     else{
+    //         positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
+    //     }
+    // }
     positionAlloc->Add(Vector(distance * 2, 50, 0));
 
     mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    mobility.Install (switches);
-    mobility.Install (ueNodes);
+    // mobility.Install (switches);
+    // mobility.Install (ueNodes);
     mobility.Install (controllers);
+
+	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
+	mobility.Install(switches);
+	mobility.Install(ueNodes);
+	for (int i = 0; i < numNodes; i++)
+	{
+		Ptr<ConstantVelocityMobilityModel> sw_mob = switches.Get(i)->GetObject<ConstantVelocityMobilityModel>();
+		if (i % 3 == 0){
+			sw_mob->SetPosition(Vector(distance * (i / 3), 150, 0));
+        }
+        else if (i % 3 == 1){
+			sw_mob->SetPosition(Vector(distance * ((i - 1) / 3) + distance / 2, 120, 0));
+        }
+        else{
+			sw_mob->SetPosition(Vector(distance * ((i - 2) / 3) + distance / 2, 180, 0));
+        }
+		sw_mob->SetVelocity(Vector(10.0, 0.0, 0.0));   
+	}
+	for (int i = 0; i < numNodes; i++)
+	{
+		Ptr<ConstantVelocityMobilityModel> ue_mob = ueNodes.Get(i)->GetObject<ConstantVelocityMobilityModel>();
+		if (i % 3 == 0){
+			ue_mob->SetPosition(Vector(distance * (i / 3), 200, 0));
+        }
+        else if (i % 3 == 1){
+			ue_mob->SetPosition(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
+        }
+        else{
+			ue_mob->SetPosition(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
+        }
+		ue_mob->SetVelocity(Vector(10.0, 0.0, 0.0));   
+	}
     
     // Configure the OpenFlow network domain
     Ptr<OFSwitch13InternalHelper> of13Helper = CreateObject<OFSwitch13InternalHelper> ();
@@ -279,10 +301,12 @@ main (int argc, char *argv[])
     anim.UpdateNodeColor (controllers.Get(0), 0, 0, 255); // Optional
 
     Simulator::Schedule (Seconds (1), modify);
+    /*
     Simulator::Schedule (Seconds (1), AdvancePosition, ueNodes.Get (sourceNode));
     Simulator::Schedule (Seconds (1), AdvancePosition, ueNodes.Get (sinkNode));
     Simulator::Schedule (Seconds (1), AdvancePosition, switches.Get (sourceNode));
     Simulator::Schedule (Seconds (1), AdvancePosition, switches.Get (sinkNode));
+    */
 
     FlowMonitorHelper flowmon;
     Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
