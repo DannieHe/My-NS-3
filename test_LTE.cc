@@ -64,14 +64,16 @@ main (int argc, char *argv[])
     bool verbose = false;
     bool trace = false;
     uint16_t numNodes = 7;
-    uint16_t src_sink = 2;
     uint16_t sourceNode = 0;
     uint16_t sinkNode = numNodes - 1;
-    Time simTime = Seconds (10.0);
-    Time simStart1 = Seconds (1.0);
-    Time simStop1 = Seconds (5.0);
-    Time simStart2 = Seconds (5.0);
-    Time simStop2 = Seconds (10.0);
+	double start = 1.0;
+	double middle = 15.0;
+	double stop = 30.0;
+    Time simTime = Seconds (30.0);
+    Time simStart1 = Seconds (start);
+    Time simStop1 = Seconds (middle);
+    Time simStart2 = Seconds (middle);
+    Time simStop2 = Seconds (stop);
     Time interPacketInterval = MilliSeconds (100);
     double distance = 90.0;    // m
     uint32_t packetSize = 128; //byte
@@ -120,7 +122,7 @@ main (int argc, char *argv[])
 
     // Create the eNB node
     NodeContainer enbNodes;
-    enbNodes.Create (src_sink);
+    enbNodes.Create (2);
 
     // Create the switch node
     NodeContainer switches;
@@ -220,31 +222,31 @@ main (int argc, char *argv[])
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-    for (int i = 0; i < numNodes; i++)
-    {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
-        }
-    }
-    for (int i = 0; i < numNodes; i++)
-    {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 210, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 180, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 240, 0));
-        }
-    }
-    for (uint16_t i = 0; i < src_sink; i++)
+    // for (int i = 0; i < numNodes; i++)
+    // {
+    //     if (i % 3 == 0){
+    //         positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
+    //     }
+    //     else if (i % 3 == 1){
+    //         positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
+    //     }
+    //     else{
+    //         positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
+    //     }
+    // }
+    // for (int i = 0; i < numNodes; i++)
+    // {
+    //     if (i % 3 == 0){
+    //         positionAlloc->Add(Vector(distance * (i / 3), 210, 0));
+    //     }
+    //     else if (i % 3 == 1){
+    //         positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 180, 0));
+    //     }
+    //     else{
+    //         positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 240, 0));
+    //     }
+    // }
+    for (uint16_t i = 0; i < 2; i++)
     {
         positionAlloc->Add(Vector(distance * 2 * i + 50, 150, 0));
     }
@@ -254,12 +256,44 @@ main (int argc, char *argv[])
 
     mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    mobility.Install (switches);
-    mobility.Install (ueNodes);
+    // mobility.Install (switches);
+    // mobility.Install (ueNodes);
     mobility.Install (enbNodes);
     mobility.Install (controllers);
     mobility.Install (pgw);
     mobility.Install (server);
+
+	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
+	mobility.Install(switches);
+	mobility.Install(ueNodes);
+	for (int i = 0; i < numNodes; i++)
+	{
+		Ptr<ConstantVelocityMobilityModel> sw_mob = switches.Get(i)->GetObject<ConstantVelocityMobilityModel>();
+		if (i % 3 == 0){
+			sw_mob->SetPosition(Vector(distance * (i / 3), 150, 0));
+        }
+        else if (i % 3 == 1){
+			sw_mob->SetPosition(Vector(distance * ((i - 1) / 3) + distance / 2, 120, 0));
+        }
+        else{
+			sw_mob->SetPosition(Vector(distance * ((i - 2) / 3) + distance / 2, 180, 0));
+        }
+		sw_mob->SetVelocity(Vector(10.0, 0.0, 0.0));   
+	}
+	for (int i = 0; i < numNodes; i++)
+	{
+		Ptr<ConstantVelocityMobilityModel> ue_mob = ueNodes.Get(i)->GetObject<ConstantVelocityMobilityModel>();
+		if (i % 3 == 0){
+			ue_mob->SetPosition(Vector(distance * (i / 3), 200, 0));
+        }
+        else if (i % 3 == 1){
+			ue_mob->SetPosition(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
+        }
+        else{
+			ue_mob->SetPosition(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
+        }
+		ue_mob->SetVelocity(Vector(10.0, 0.0, 0.0));   
+	}
 
     /*
      *          OPENFLOW
@@ -289,7 +323,7 @@ main (int argc, char *argv[])
     Ipv4InterfaceContainer ueIpIface;
     ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
     // Assign IP address to UEs, and install applications
-    for (uint16_t u = 0; u < src_sink; u++)
+    for (uint16_t u = 0; u < 2; u++)
     {
         Ptr<Node> ueNode = ueNodes.Get (u*(numNodes-1));
         // Set the default gateway for the UE
@@ -298,7 +332,7 @@ main (int argc, char *argv[])
     }
 
     // Attach one UE per eNodeB
-    for (uint16_t i = 0; i < src_sink; i++)
+    for (uint16_t i = 0; i < 2; i++)
     {
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
         // side effect: the default EPS bearer will be activated
@@ -370,7 +404,7 @@ main (int argc, char *argv[])
         anim.UpdateNodeSize (ueNodes.Get (i)->GetId(), x_size, y_size);
         anim.UpdateNodeColor (ueNodes.Get (i), 255, 0, 0);
     }
-    for (uint32_t i = 0; i < src_sink; i++)
+    for (uint32_t i = 0; i < 2; i++)
     {
         anim.UpdateNodeDescription (enbNodes.Get (i), "eNB");
 	    anim.UpdateNodeSize (enbNodes.Get (i)->GetId(), x_size, y_size);
@@ -394,14 +428,14 @@ main (int argc, char *argv[])
     anim.UpdateNodeColor (controllers.Get (0), 0, 0, 255);
 
     Simulator::Schedule (Seconds (1), modify);
-    for (int i = 0; i < src_sink; i++)
-    {
-        Simulator::Schedule (Seconds (1.0), AdvancePosition, ueNodes.Get (i*(numNodes-1)));
-    }
-    Simulator::Schedule (Seconds (1), AdvancePosition, ueNodes.Get (sourceNode));
-    Simulator::Schedule (Seconds (1), AdvancePosition, ueNodes.Get (sinkNode));
-    Simulator::Schedule (Seconds (1), AdvancePosition, switches.Get (sourceNode));
-    Simulator::Schedule (Seconds (1), AdvancePosition, switches.Get (sinkNode));
+    // for (int i = 0; i < 2; i++)
+    // {
+    //     Simulator::Schedule (Seconds (1), AdvancePosition, ueNodes.Get (i));
+    // }
+	// for (int i = 0; i < numNodes; i++)
+	// {
+	// 	Simulator::Schedule (Seconds (1), AdvancePosition, switches.Get (i));
+	// }
 
     FlowMonitorHelper flowmon;
     Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
@@ -418,10 +452,10 @@ main (int argc, char *argv[])
         std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
         std::cout << "  Tx Packets: " << i->second.txPackets << "\n";     //フローiの送信パケット数合計
         std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";	    //送信バイト数合計
-        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / 10 / 1000 / 1000  << " Mbps\n";
+        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";
         std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";	    //受信パケット数合計
         std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";	    //受信バイト数合計
-        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / 10 / 1000 / 1000  << " Mbps\n";	//スループット
+        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";	//スループット
     }
 
     Simulator::Destroy ();
