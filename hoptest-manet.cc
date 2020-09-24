@@ -52,9 +52,9 @@ int
 main (int argc, char *argv[])
 {
     //std::string phyMode ("DsssRate1Mbps");
-    uint16_t numNodes = 6;
+    uint16_t numNodes = 2;
     uint16_t sinkNode = numNodes - 1;    //destination
-    uint16_t sourceNode = 0;  //source
+    uint16_t srcNode = 0;  //source
     double start = 1.0;
 	double stop = 10.0;
     Time simTime = Seconds (10.0);
@@ -122,15 +122,12 @@ main (int argc, char *argv[])
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
     for (int i = 0; i < numNodes; i++)
     {
-/*
-        if (i % 2 == 0)
+        if (i == numNodes - 1)
         {
-            positionAlloc->Add(Vector(distance * i, 150, 0));
+            positionAlloc->Add(Vector(distance * i - 30, 160, 0));
         }else{
-            positionAlloc->Add(Vector(distance * i, 180, 0));
+            positionAlloc->Add(Vector(distance * i, 150, 0));
         }
-*/
-        positionAlloc->Add(Vector(distance * i, 150, 0));
     }
 /*
     for (int i = 0; i < numNodes; i++)
@@ -184,18 +181,25 @@ main (int argc, char *argv[])
     Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
-    ApplicationContainer clientApps = Client.Install(wifiNodes.Get(sourceNode));
+    ApplicationContainer clientApps = Client.Install(wifiNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
 */
-    uint16_t dlPort = 1234;
+    uint16_t Port = 1234;
     ApplicationContainer clientApps;
     ApplicationContainer serverApps;
 
-    PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
-    serverApps.Add (dlPacketSinkHelper.Install (wifiNodes.Get(sinkNode)));
-    BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), dlPort));
-    clientApps.Add (dlClient.Install (wifiNodes.Get(sourceNode)));
+    // PacketSinkHelper PacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
+    // serverApps.Add (PacketSinkHelper.Install (wifiNodes.Get(sinkNode)));
+    // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
+    // clientApps.Add (Client.Install (wifiNodes.Get(srcNode)));
+    OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
+    onOff.SetConstantRate(DataRate("54Mbps"));
+    onOff.SetAttribute ("PacketSize", UintegerValue (1472));
+    clientApps = onOff.Install (wifiNodes.Get (srcNode));
+
+    PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
+    serverApps = sink.Install (wifiNodes.Get (sinkNode));
 
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
