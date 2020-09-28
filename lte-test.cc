@@ -72,8 +72,10 @@ main (int argc, char *argv[])
     // parse again so you can override default values from the command line
     cmd.Parse(argc, argv);
 
-    LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+    LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
 
     //Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
     //Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
@@ -98,7 +100,7 @@ main (int argc, char *argv[])
     PointToPointHelper p2p;
     p2p.SetDeviceAttribute ("DataRate", DataRateValue (DataRate ("100Gb/s")));
     p2p.SetDeviceAttribute ("Mtu", UintegerValue (1500));
-    p2p.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (1)));
+    p2p.SetChannelAttribute ("Delay", TimeValue (MilliSeconds (10)));
 
     // PGW -- server
     NetDeviceContainer internetDevices = p2p.Install (pgw, server);
@@ -123,7 +125,7 @@ main (int argc, char *argv[])
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
     for (uint16_t i = 0; i < numNodes; i++)
     {
-        positionAlloc->Add(Vector(distance * i, 150, 0));
+        positionAlloc->Add(Vector(distance * i, 180, 0));
     }
     for (uint16_t i = 0; i < numNodes; i++)
     {
@@ -179,11 +181,20 @@ main (int argc, char *argv[])
     uint16_t dlPort = 1234;
     ApplicationContainer clientApps;
     ApplicationContainer serverApps;
-
+/*
     PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
     serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get(sinkNode)));
     BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
     clientApps.Add (dlClient.Install (ueNodes.Get(sourceNode)));
+*/
+    OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
+    onOff.SetConstantRate(DataRate("1Mbps"));
+    onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    clientApps = onOff.Install (ueNodes.Get (sourceNode));
+
+    PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    serverApps = sink.Install (ueNodes.Get (sinkNode));
+
 
     serverApps.Start (simStart);
     serverApps.Stop (simStop);

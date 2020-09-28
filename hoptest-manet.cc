@@ -42,7 +42,7 @@ AdvancePosition (Ptr<Node> node)
 int
 main (int argc, char *argv[])
 {
-    uint16_t numNodes = 2;
+    uint16_t numNodes = 3;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
     double start = 1.0;
@@ -50,13 +50,16 @@ main (int argc, char *argv[])
     Time simTime = Seconds (10.0);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MilliSeconds (100);
+    Time interPacketInterval = MilliSeconds (10);
     double distance = 90.0;  // m
     uint32_t packetSize = 1024; // bytes
     int no_manet = 1;
+    double txPower = 100.0;
 
-    LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+    LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
     
     
     NodeContainer wifiNodes;
@@ -68,6 +71,8 @@ main (int argc, char *argv[])
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
+    wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
+    wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -146,12 +151,12 @@ main (int argc, char *argv[])
     // serverApps.Add (PacketSinkHelper.Install (wifiNodes.Get(sinkNode)));
     // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
     // clientApps.Add (Client.Install (wifiNodes.Get(srcNode)));
-    OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    onOff.SetConstantRate(DataRate("54Mbps"));
+    OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
+    onOff.SetConstantRate(DataRate("5Mbps"));
     onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
     clientApps = onOff.Install (wifiNodes.Get (srcNode));
 
-    PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
+    PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
     serverApps = sink.Install (wifiNodes.Get (sinkNode));
 
     serverApps.Start (simStart);
