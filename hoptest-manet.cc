@@ -11,19 +11,10 @@
 #include "ns3/olsr-helper.h"
 
 
+
 using namespace ns3;
 
-
-
-NS_LOG_COMPONENT_DEFINE ("WifiAdhoc");
-
-// void ReceivePacket (Ptr<Socket> socket)
-// {
-//   while (socket->Recv ())
-//     {
-//       NS_LOG_UNCOND ("Received one packet!");
-//     }
-// }
+NS_LOG_COMPONENT_DEFINE ("HopTest");
 
 void
 SetPosition (Ptr<Node> node, Vector position)
@@ -51,7 +42,6 @@ AdvancePosition (Ptr<Node> node)
 int
 main (int argc, char *argv[])
 {
-    //std::string phyMode ("DsssRate1Mbps");
     uint16_t numNodes = 2;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
@@ -62,11 +52,8 @@ main (int argc, char *argv[])
     Time simStop = Seconds (stop);
     Time interPacketInterval = MilliSeconds (100);
     double distance = 90.0;  // m
-    //uint32_t packetSize = 128; // bytes
+    uint32_t packetSize = 1024; // bytes
     int no_manet = 1;
-    double txPower = 100.0;
-
-    //Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1024));
 
     LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
@@ -75,25 +62,12 @@ main (int argc, char *argv[])
     NodeContainer wifiNodes;
     wifiNodes.Create(numNodes);
 
-    // NodeContainer wifiPair[numNodes-1];
-    // for (int i = 0; i < numNodes-1; i++)
-    // {
-    //     wifiPair[i].Add(wifiNodes.Get(i));
-    //     wifiPair[i].Add(wifiNodes.Get(i+1));
-    // }
-
     // The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
     wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    wifiPhy.Set("ShortGuardEnabled", BooleanValue(1));
-	wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
-	wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
-    // wifiPhy.Set("EnergyDetectionThreshold", DoubleValue(-42.0));	// Default is -96dBm
-    // wifiPhy.Set("CcaMode1Threshold", DoubleValue(-42.0));			// Default is -99dBm
-
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -107,15 +81,9 @@ main (int argc, char *argv[])
                                 "DataMode",StringValue ("HtMcs0"),
                                 "ControlMode",StringValue ("HtMcs7"));
     // Set it to adhoc mode
-    // wifiMac.SetType ("ns3::AdhocWifiMac");
-    // for (int i = 0; i < numNodes-1; i++)
-    // {
-    //     NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiPair[i]);
-    // }
+    wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiNodes);
 
-    Config::Set ("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(5));
-    
 
     // Configure mobility
     MobilityHelper mobility;
@@ -124,34 +92,20 @@ main (int argc, char *argv[])
     {
         if (i == numNodes - 1)
         {
-            positionAlloc->Add(Vector(distance * i - 30, 160, 0));
+            positionAlloc->Add(Vector(distance * i - 20, 160, 0));
         }else{
             positionAlloc->Add(Vector(distance * i, 150, 0));
         }
     }
-/*
-    for (int i = 0; i < numNodes; i++)
-    {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
-        }
-    }
-*/
     mobility.SetPositionAllocator (positionAlloc);
     mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
     mobility.Install (wifiNodes);
 
     AodvHelper aodv;
     OlsrHelper olsr;
-    Ipv4StaticRoutingHelper staticRouting ;
+    Ipv4StaticRoutingHelper staticRouting;
 
-    Ipv4ListRoutingHelper list ;
+    Ipv4ListRoutingHelper list;
 
     list.Add(staticRouting, 0);
     if (no_manet == 1){
@@ -169,7 +123,6 @@ main (int argc, char *argv[])
     NS_LOG_INFO ("Assign IP Addresses.");
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer i = ipv4.Assign (devices);
-
 /*
     UdpServerHelper Server (9);
     ApplicationContainer serverApps = Server.Install(wifiNodes.Get(sinkNode));
@@ -195,7 +148,7 @@ main (int argc, char *argv[])
     // clientApps.Add (Client.Install (wifiNodes.Get(srcNode)));
     OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
     onOff.SetConstantRate(DataRate("54Mbps"));
-    onOff.SetAttribute ("PacketSize", UintegerValue (1472));
+    onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
     clientApps = onOff.Install (wifiNodes.Get (srcNode));
 
     PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
@@ -205,11 +158,6 @@ main (int argc, char *argv[])
     serverApps.Stop (simStop);
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-    // Simulator::Schedule (Seconds (1), modify);
-    // for (int i = 0; i < numNodes; i++)
-    // {
-    //     Simulator::Schedule (Seconds (1), AdvancePosition, wifiNodes.Get (i));
-    // }
 
     AnimationInterface anim ("adhoc-hop-test.xml");
     anim.SetMaxPktsPerTraceFile(10000000);
