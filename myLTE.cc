@@ -40,18 +40,25 @@ AdvancePosition (Ptr<Node> node)
     Simulator::Schedule (Seconds (1.0), AdvancePosition, node);
 }
 
+void BandWidthTrace()
+{
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+    //Config::Set("ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+}
+
 NS_LOG_COMPONENT_DEFINE ("Study");
 
 int
 main (int argc, char *argv[])
 {
-    uint16_t numNodes = 7;
-    uint16_t src_sink = 2;
+    uint16_t numNodes = 2;
     uint16_t sourceNode = 0;
     uint16_t sinkNode = numNodes - 1;
+    double start = 1.0;
+	double stop = 10.0;
     Time simTime = Seconds (10.0);
-    Time simStart = Seconds (1.0);
-    Time simStop = Seconds (10.0);
+    Time simStart = Seconds (start);
+    Time simStop = Seconds (stop);
     Time interPacketInterval = MilliSeconds (100);
     double distance = 200.0;    // m
     uint32_t packetSize = 1024; //byte
@@ -71,13 +78,20 @@ main (int argc, char *argv[])
     // parse again so you can override default values from the command line
     cmd.Parse(argc, argv);
 
-    LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+    //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
+
+    //Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
+    //Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper> ();
     Ptr<EpcHelper> epcHelper = CreateObject<PointToPointEpcHelper> ();
     
     lteHelper->SetEpcHelper (epcHelper);
+
 
     // PGWノード生成
     Ptr<Node> pgw = epcHelper->GetPgwNode ();
@@ -111,26 +125,18 @@ main (int argc, char *argv[])
     NodeContainer ueNodes;
     NodeContainer enbNodes;
     ueNodes.Create (numNodes);
-    enbNodes.Create (src_sink);
+    enbNodes.Create (numNodes);
 
     //モビリティモデルの設定
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
     for (uint16_t i = 0; i < numNodes; i++)
     {
-        if (i % 3 == 0){
-            positionAlloc->Add(Vector(distance * (i / 3), 200, 0));
-        }
-        else if (i % 3 == 1){
-            positionAlloc->Add(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
-        }
-        else{
-            positionAlloc->Add(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
-        }
+        positionAlloc->Add(Vector(distance * i, 180, 0));
     }
-    for (uint16_t i = 0; i < src_sink; i++)
+    for (uint16_t i = 0; i < numNodes; i++)
     {
-        positionAlloc->Add(Vector(distance * 2 * i + 50, 150, 0));
+        positionAlloc->Add(Vector(distance * i, 150, 0));
     }
     positionAlloc->Add(Vector(distance + 50, 120, 0));
     positionAlloc->Add(Vector(distance + 50, 80, 0));
@@ -143,7 +149,7 @@ main (int argc, char *argv[])
 
     // Install LTE Devices to the nodes
     NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes);
-    NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (NodeContainer(ueNodes.Get(sourceNode), ueNodes.Get(sinkNode)));
+    NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (ueNodes);
 
     // Install the IP stack on the UEs
     internet.Install (ueNodes);
@@ -151,26 +157,29 @@ main (int argc, char *argv[])
     Ipv4InterfaceContainer ueIpIface;
     ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
     // Assign IP address to UEs, and install applications
-    for (uint16_t u = 0; u < src_sink; u++)
+    for (uint16_t u = 0; u < numNodes; u++)
     {
-        Ptr<Node> ueNode = ueNodes.Get (u*(numNodes-1));
+        Ptr<Node> ueNode = ueNodes.Get (u);
         // Set the default gateway for the UE
         Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
         ueStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
     }
 
     // Attach one UE per eNodeB
-    for (uint16_t i = 0; i < src_sink; i++)
+    for (uint16_t i = 0; i < numNodes; i++)
     {
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
     }
 
+    Simulator::Schedule (Seconds(5) , &BandWidthTrace);
+
+/*
     UdpServerHelper Server (9);
     ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
 
-    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode-5),9);
+    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode),9);
     Client.SetAttribute ("MaxPackets", UintegerValue (10000));
     Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
@@ -178,18 +187,41 @@ main (int argc, char *argv[])
     ApplicationContainer clientApps = Client.Install(ueNodes.Get(sourceNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
+*/
+    uint16_t dlPort = 1234;
+    ApplicationContainer clientApps;
+    ApplicationContainer serverApps;
+/*
+    PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get(sinkNode)));
+    BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
+    clientApps.Add (dlClient.Install (ueNodes.Get(sourceNode)));
+*/
+    OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
+    onOff.SetConstantRate(DataRate("10Mbps"));
+    onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    clientApps = onOff.Install (ueNodes.Get (sourceNode));
+
+    PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    serverApps = sink.Install (ueNodes.Get (sinkNode));
+
+
+    serverApps.Start (simStart);
+    serverApps.Stop (simStop);
+    clientApps.Start (simStart);
+    clientApps.Stop (simStop);
 
     lteHelper->EnableTraces ();
 
 
-    AnimationInterface anim ("my-lte-ver8.xml"); // Mandatory
+    AnimationInterface anim ("lte-test.xml"); // Mandatory
 
     for (uint32_t i = 0; i < numNodes; i++)
     {
         anim.UpdateNodeDescription (ueNodes.Get (i), "UE"); // Optional
         anim.UpdateNodeColor (ueNodes.Get (i), 255, 0, 0); // Optional
     }
-    for (uint32_t i = 0; i < src_sink; i++)
+    for (uint32_t i = 0; i < numNodes; i++)
     {
         anim.UpdateNodeDescription (enbNodes.Get (i), "eNB"); // Optional
         anim.UpdateNodeColor (enbNodes.Get (i), 0, 255, 0); // Optional
@@ -200,16 +232,16 @@ main (int argc, char *argv[])
     anim.UpdateNodeDescription (server, "server"); // Optional
     anim.UpdateNodeColor (server, 0, 0, 255); // Optional
 
-
+    anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata (); // Optional
 
     FlowMonitorHelper flowmon;
     Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
 
-    for (int i = 0; i < src_sink; i++)
-    {
-        Simulator::Schedule (Seconds (1.0), AdvancePosition, ueNodes.Get (i*(numNodes-1)));
-    }
+    // for (int i = 0; i < numNodes; i++)
+    // {
+    //     Simulator::Schedule (Seconds (1.0), AdvancePosition, ueNodes.Get (i*(numNodes-1)));
+    // }
 
     Simulator::Stop (simTime);
     Simulator::Run ();
@@ -223,10 +255,10 @@ main (int argc, char *argv[])
         std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
         std::cout << "  Tx Packets: " << i->second.txPackets << "\n";     //フローiの送信パケット数合計
         std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";	    //送信バイト数合計
-        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / 10 / 1000 / 1000  << " Mbps\n";
+        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";
         std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";	    //受信パケット数合計
         std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";	    //受信バイト数合計
-        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / 10 / 1000 / 1000  << " Mbps\n";	//スループット
+        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";	//スループット
     }
 
     Simulator::Destroy ();
