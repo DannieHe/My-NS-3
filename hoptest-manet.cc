@@ -54,12 +54,12 @@ main (int argc, char *argv[])
     double distance = 90.0;  // m
     uint32_t packetSize = 1024; // bytes
     int no_manet = 1;
-    double txPower = 100.0;
+    //double txPower = 100.0;
 
     //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
-    LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
-    LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
+    //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
+    //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
     
     
     NodeContainer wifiNodes;
@@ -71,8 +71,9 @@ main (int argc, char *argv[])
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
-    wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
+    //wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
+    //wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
+    //wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -88,6 +89,10 @@ main (int argc, char *argv[])
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiNodes);
+
+    //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
+   
+    Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
 
 
     // Configure mobility
@@ -128,7 +133,7 @@ main (int argc, char *argv[])
     NS_LOG_INFO ("Assign IP Addresses.");
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer i = ipv4.Assign (devices);
-/*
+
     UdpServerHelper Server (9);
     ApplicationContainer serverApps = Server.Install(wifiNodes.Get(sinkNode));
     serverApps.Start (simStart);
@@ -136,13 +141,14 @@ main (int argc, char *argv[])
 
     UdpClientHelper Client(i.GetAddress(sinkNode),9);
     Client.SetAttribute ("MaxPackets", UintegerValue (10000000));
-    Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
+    //Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
+    Client.SetAttribute ("Interval", TimeValue (Seconds(0.001)));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
     ApplicationContainer clientApps = Client.Install(wifiNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-*/
+/*
     uint16_t Port = 1234;
     ApplicationContainer clientApps;
     ApplicationContainer serverApps;
@@ -151,19 +157,19 @@ main (int argc, char *argv[])
     // serverApps.Add (PacketSinkHelper.Install (wifiNodes.Get(sinkNode)));
     // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
     // clientApps.Add (Client.Install (wifiNodes.Get(srcNode)));
-    OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    onOff.SetConstantRate(DataRate("5Mbps"));
+    OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
+    onOff.SetConstantRate(DataRate("3Mbps"));
     onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
     clientApps = onOff.Install (wifiNodes.Get (srcNode));
 
-    PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
+    PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
     serverApps = sink.Install (wifiNodes.Get (sinkNode));
 
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-
+*/
     AnimationInterface anim ("adhoc-hop-test.xml");
     anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata ();
