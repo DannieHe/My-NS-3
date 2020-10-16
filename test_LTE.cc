@@ -34,7 +34,7 @@ main (int argc, char *argv[])
     Time simStop1 = Seconds (middle);
     Time simStart2 = Seconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MilliSeconds (3.28);
+    Time LteInterval = MilliSeconds (1.64);
 	Time AdhocInterval = MilliSeconds (6.56);
     double distance = 90.0;    // m
     uint32_t packetSize = 1024; //byte
@@ -190,21 +190,6 @@ main (int argc, char *argv[])
 */
 
 
-	/*
-	 *	Ad Hoc
-	 */
-	AodvHelper aodv;
-    Ipv4StaticRoutingHelper adhocStaticRouting;
-
-    Ipv4ListRoutingHelper list;
-    list.Add(adhocStaticRouting, 0);
-	list.Add(aodv, 10);
-    
-    InternetStackHelper stack;
-    stack.SetRoutingHelper (list); // has effect on the next Install ()
-    stack.Install (ueNodes);
-
-
     /*
      *          LTE
      */
@@ -214,7 +199,7 @@ main (int argc, char *argv[])
     NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (lteNodes);
 
     // Install the IP stack on the UEs
-    // internet.Install(ueNodes);
+    internet.Install(ueNodes);
 
     Ipv4InterfaceContainer lteIpIface;
     lteIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
@@ -256,6 +241,23 @@ main (int argc, char *argv[])
     LteClientApps.Stop (simStop1);
 
     lteHelper->EnableTraces ();
+
+	/*
+	 *	Ad Hoc
+	 */
+	AodvHelper aodv;
+    Ipv4StaticRoutingHelper adhocStaticRouting;
+
+    Ipv4ListRoutingHelper list;
+    list.Add(adhocStaticRouting, 0);
+	list.Add(aodv, 10);
+    
+    //InternetStackHelper stack;
+    //stack.SetRoutingHelper (list); // has effect on the next Install ()
+    //stack.Install (ueNodes);
+
+    // 分けて書くことで，正しいアドレスに
+    internet.SetRoutingHelper (list);
 
     // adhoc
     UdpServerHelper AdhocServer (9);
