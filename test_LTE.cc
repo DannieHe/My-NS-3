@@ -35,9 +35,11 @@ main (int argc, char *argv[])
     Time simStart2 = Seconds (middle);
     Time simStop2 = Seconds (stop);
     Time LteInterval = MilliSeconds (1.64);
-	Time AdhocInterval = MilliSeconds (6.56);
+	Time AdhocInterval = MilliSeconds (3.28);
     double distance = 90.0;    // m
+    double sinkPos = distance * 2 - 20;
     uint32_t packetSize = 1024; //byte
+    int channelwidth = 40;
 
     // Configure command line parameters
     CommandLine cmd;
@@ -52,25 +54,26 @@ main (int argc, char *argv[])
     ConfigStore inputConfig;
     inputConfig.ConfigureDefaults ();
 
-    // parse again so you can override default values from the command line
     cmd.Parse(argc, argv);
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     // LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
-    // Enable checksum computations (required by OFSwitch13 module)
-    // GlobalValue::Bind ("ChecksumEnabled", BooleanValue (true));
+    // Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
+    // Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
-
-    // Create the UE node
+    // Create UE node
     NodeContainer ueNodes;
     ueNodes.Create (numNodes);
 
+    // Add LTE node
     NodeContainer lteNodes;
-    lteNodes.Add(ueNodes.Get(srcNode));
-    lteNodes.Add(ueNodes.Get(sinkNode));
+    // lteNodes.Add(ueNodes.Get(srcNode));
+    // lteNodes.Add(ueNodes.Get(sinkNode));
+    lteNodes.Create (2);
 
-    // Create the eNB node
+    // Create eNB node
     NodeContainer enbNodes;
     enbNodes.Create (2);
 
@@ -83,17 +86,17 @@ main (int argc, char *argv[])
     
     lteHelper->SetEpcHelper (epcHelper);
 
-    // PGWノード生成
+    // Create PGW
     Ptr<Node> pgw = epcHelper->GetPgwNode ();
 
-    // Create a single server
+    // Create server
     NodeContainer serverContainer;
     serverContainer.Create (1);
     Ptr<Node> server = serverContainer.Get (0);
     InternetStackHelper internet;
     internet.Install (serverContainer);
 
-    // Create the Internet
+    // Create p2p
     PointToPointHelper p2p;
     p2p.SetDeviceAttribute ("DataRate", DataRateValue (DataRate ("100Gb/s")));
     p2p.SetDeviceAttribute ("Mtu", UintegerValue (1500));
@@ -115,15 +118,12 @@ main (int argc, char *argv[])
 	/*
 	 *	Ad Hoc
 	 */
-	// The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
     wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    //wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
-    //wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
-    //wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
+    wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -131,18 +131,17 @@ main (int argc, char *argv[])
                                     "Exponent", DoubleValue (3.0));
     wifiPhy.SetChannel (wifiChannel.Create ());
 
-    // Add a non-QoS upper mac, and disable rate control (i.e. ConstantRateWifiManager)
     WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
                                 "DataMode",StringValue ("HtMcs0"),
                                 "ControlMode",StringValue ("HtMcs7"));
+
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer adhocDev = wifi.Install (wifiPhy, wifiMac, ueNodes);
 
-    //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
-   
-    Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
+    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
+    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
 
 
 
@@ -152,15 +151,17 @@ main (int argc, char *argv[])
     {
         if (i == numNodes - 1)
         {
-            positionAlloc->Add(Vector(distance * 1 - 20, 160, 0));
+            positionAlloc->Add(Vector(sinkPos, 160, 0));
         }else{
             positionAlloc->Add(Vector(distance * i, 150, 0));
         }
     }
-    for (uint16_t i = 0; i < 2; i++)
+    for (int i = 0; i < 2; i++)
     {
         positionAlloc->Add(Vector(distance * i , 140, 0));
     }
+    positionAlloc->Add(Vector(0, 150, 0));
+    positionAlloc->Add(Vector(sinkPos, 160, 0));
     positionAlloc->Add(Vector(distance + 50, 120, 0));
     positionAlloc->Add(Vector(distance + 50, 80, 0));
 
@@ -168,6 +169,7 @@ main (int argc, char *argv[])
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
     mobility.Install (ueNodes);
     mobility.Install (enbNodes);
+    mobility.Install (lteNodes);
     mobility.Install (pgw);
     mobility.Install (server);
 /*
@@ -199,17 +201,17 @@ main (int argc, char *argv[])
     NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (lteNodes);
 
     // Install the IP stack on the UEs
-    internet.Install(ueNodes);
+    internet.Install(lteNodes);
 
     Ipv4InterfaceContainer lteIpIface;
     lteIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
     // Assign IP address to UEs, and install applications
     for (uint16_t u = 0; u < 2; u++)
     {
-        //Ptr<Node> ueNode = ueNodes.Get (u*(numNodes-1));
-        Ptr<Node> ueNode = lteNodes.Get (u);
+        //Ptr<Node> lteNode = ueNodes.Get (u*(numNodes-1));
+        Ptr<Node> lteNode = lteNodes.Get (u);
         // Set the default gateway for the UE
-        Ptr<Ipv4StaticRouting> lteStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
+        Ptr<Ipv4StaticRouting> lteStaticRouting = ipv4RoutingHelper.GetStaticRouting (lteNode->GetObject<Ipv4> ());
         lteStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
     }
 
@@ -220,10 +222,28 @@ main (int argc, char *argv[])
         // side effect: the default EPS bearer will be activated
     }
 
+	/*
+	 *	Ad Hoc
+	 */
+	AodvHelper aodv;
+    Ipv4StaticRoutingHelper adhocStaticRouting;
+
+    Ipv4ListRoutingHelper list;
+    list.Add(adhocStaticRouting, 0);
+	list.Add(aodv, 10);
+    
+    InternetStackHelper stack;
+    stack.SetRoutingHelper (list); // has effect on the next Install ()
+    stack.Install (ueNodes);
+    
     Ipv4AddressHelper address;
     NS_LOG_INFO ("Assign IP Addresses.");
     address.SetBase ("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer adhocIpIface = address.Assign (adhocDev);
+
+
+    // 分けて書くことで，正しいアドレスに
+    // internet.SetRoutingHelper (list);
 
     // LTE
     UdpServerHelper LteServer (20);
@@ -242,22 +262,6 @@ main (int argc, char *argv[])
 
     lteHelper->EnableTraces ();
 
-	/*
-	 *	Ad Hoc
-	 */
-	AodvHelper aodv;
-    Ipv4StaticRoutingHelper adhocStaticRouting;
-
-    Ipv4ListRoutingHelper list;
-    list.Add(adhocStaticRouting, 0);
-	list.Add(aodv, 10);
-    
-    //InternetStackHelper stack;
-    //stack.SetRoutingHelper (list); // has effect on the next Install ()
-    //stack.Install (ueNodes);
-
-    // 分けて書くことで，正しいアドレスに
-    internet.SetRoutingHelper (list);
 
     // adhoc
     UdpServerHelper AdhocServer (9);
@@ -318,10 +322,12 @@ main (int argc, char *argv[])
         std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
         std::cout << "  Tx Packets: " << i->second.txPackets << "\n";     //フローiの送信パケット数合計
         std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";	    //送信バイト数合計
-        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";
+        //std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";
+        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / 15 / 1000 / 1000  << " Mbps\n";
         std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";	    //受信パケット数合計
         std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";	    //受信バイト数合計
-        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";	//スループット
+        //std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";	//スループット
+        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / 15 / 1000 / 1000  << " Mbps\n";
     }
 
     Simulator::Destroy ();

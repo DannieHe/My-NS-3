@@ -42,7 +42,7 @@ AdvancePosition (Ptr<Node> node)
 int
 main (int argc, char *argv[])
 {
-    uint16_t numNodes = 3;
+    uint16_t numNodes = 7;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
     double start = 1.0;
@@ -50,11 +50,12 @@ main (int argc, char *argv[])
     Time simTime = Seconds (10.0);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MilliSeconds (10);
+    Time interPacketInterval = MilliSeconds (3.28);
     double distance = 90.0;  // m
     uint32_t packetSize = 1024; // bytes
     int no_manet = 1;
     //double txPower = 100.0;
+    int channelwidth =40;
 
     //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
@@ -71,7 +72,7 @@ main (int argc, char *argv[])
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    //wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
+    wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
     //wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
     //wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
 
@@ -86,13 +87,15 @@ main (int argc, char *argv[])
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
                                 "DataMode",StringValue ("HtMcs0"),
                                 "ControlMode",StringValue ("HtMcs7"));
+
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiNodes);
 
+    // not Good
     //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
    
-    Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
+    //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
 
 
     // Configure mobility
@@ -102,7 +105,7 @@ main (int argc, char *argv[])
     {
         if (i == numNodes - 1)
         {
-            positionAlloc->Add(Vector(distance * i - 20, 160, 0));
+            positionAlloc->Add(Vector(distance * 2 - 20, 160, 0));
         }else{
             positionAlloc->Add(Vector(distance * i, 150, 0));
         }
@@ -141,8 +144,7 @@ main (int argc, char *argv[])
 
     UdpClientHelper Client(i.GetAddress(sinkNode),9);
     Client.SetAttribute ("MaxPackets", UintegerValue (10000000));
-    //Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
-    Client.SetAttribute ("Interval", TimeValue (Seconds(0.001)));
+    Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
     ApplicationContainer clientApps = Client.Install(wifiNodes.Get(srcNode));
