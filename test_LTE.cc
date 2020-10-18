@@ -19,7 +19,7 @@
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("Study");
-    
+
 int
 main (int argc, char *argv[])
 {
@@ -246,7 +246,6 @@ main (int argc, char *argv[])
     // internet.SetRoutingHelper (list);
 
     // LTE
-    /*
     UdpServerHelper LteServer (20);
     ApplicationContainer LteServerApps = LteServer.Install(lteNodes.Get(1));
     LteServerApps.Start (simStart1);
@@ -260,25 +259,11 @@ main (int argc, char *argv[])
     ApplicationContainer LteClientApps = LteClient.Install(lteNodes.Get(0));
     LteClientApps.Start (simStart1);
     LteClientApps.Stop (simStop1);
-    */
-    uint16_t ltePort = 1000;
-    OnOffHelper onOff1 ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
-    onOff1.SetConstantRate(DataRate("10Mbps"));
-    onOff1.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer lteClientApps = onOff1.Install (lteNodes.Get (0));
-    lteClientApps.Start (simStart1);
-    lteClientApps.Stop (simStop1);
-
-    PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
-    ApplicationContainer lteServerApps = sink1.Install (lteNodes.Get (1));
-    lteServerApps.Start (simStart1);
-    lteServerApps.Stop (simStop1);
 
     lteHelper->EnableTraces ();
 
 
     // adhoc
-    /*
     UdpServerHelper AdhocServer (9);
     ApplicationContainer AdhocServerApps = AdhocServer.Install(ueNodes.Get(sinkNode));
     AdhocServerApps.Start (simStart2);
@@ -292,20 +277,6 @@ main (int argc, char *argv[])
     ApplicationContainer AdhocClientApps = AdhocClient.Install(ueNodes.Get(srcNode));
     AdhocClientApps.Start (simStart2);
     AdhocClientApps.Stop (simStop2);
-    */
-    uint16_t adhocPort = 1234;
-    OnOffHelper onOff2 ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
-    onOff2.SetConstantRate(DataRate("3Mbps"));
-    onOff2.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer adhocClientApps = onOff2.Install (ueNodes.Get (srcNode));
-    adhocClientApps.Start (simStart2);
-    adhocClientApps.Stop (simStop2);
-
-    PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
-    ApplicationContainer adhocServerApps = sink2.Install (ueNodes.Get (sinkNode));
-    adhocServerApps.Start (simStart2);
-    adhocServerApps.Stop (simStop2);
-
 
     // Run the simulation
     AnimationInterface anim("test_LTE.xml");
