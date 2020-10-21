@@ -41,6 +41,12 @@ void BandWidthTrace4()
     Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(4084)));
 }
 
+void adhocBandWidth()
+{
+    Time AdhocInterval = MicroSeconds (4084);
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval));
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -48,7 +54,7 @@ main (int argc, char *argv[])
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 5990;
+	double middle = 9006;
 	double stop = 30.0;
     Time simTime = Seconds (30.0);
     Time simStart1 = Seconds (start);
@@ -56,9 +62,8 @@ main (int argc, char *argv[])
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
     Time LteInterval = MicroSeconds (820);	//10Mbps
-	Time AdhocInterval = MicroSeconds (2731);
     double distance = 90.0;    // m
-    double sinkPos = distance * 2 - 20;
+    double sinkPos = distance * 3 - 20;
     uint32_t packetSize = 1024; //byte
     int channelwidth = 40;
 
@@ -67,7 +72,7 @@ main (int argc, char *argv[])
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
     cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
     cmd.AddValue ("LteInterval", "Inter packet interval", LteInterval);
-	cmd.AddValue ("AdhocInterval", "Inter packet interval", AdhocInterval);
+	//cmd.AddValue ("AdhocInterval", "Inter packet interval", AdhocInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
     cmd.Parse (argc, argv);
@@ -78,7 +83,7 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    // LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
     // Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
     // Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
@@ -212,6 +217,7 @@ main (int argc, char *argv[])
 	}
 */
 
+
     /*
      *          LTE
      */
@@ -267,9 +273,10 @@ main (int argc, char *argv[])
 
 
     Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
-    // Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
-    // Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
-    // Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+    Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
+    Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
+    Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+    Simulator::Schedule (MilliSeconds(middle) , &adhocBandWidth);
 
     // LTE
     UdpServerHelper LteServer (20);
@@ -311,7 +318,7 @@ main (int argc, char *argv[])
 
     UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
     AdhocClient.SetAttribute ("MaxPackets", UintegerValue (100000));
-    AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
+    //AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
     AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
     ApplicationContainer AdhocClientApps = AdhocClient.Install(ueNodes.Get(srcNode));
@@ -376,16 +383,16 @@ main (int argc, char *argv[])
         std::cout << "  Tx Packets: " << i->second.txPackets << "\n";     //フローiの送信パケット数合計
         std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";	    //送信バイト数合計
         if (t.sourceAddress == "7.0.0.2"){
-            std::cout << "  Tx Offered(LTE): " << i->second.txBytes * 8.0 / (middle - start) / 1000 / 1000  << " Mbps\n";
+            std::cout << "  Tx Offered(LTE): " << i->second.txBytes * 8.0 / ((middle / 1000) - start) / 1000 / 1000  << " Mbps\n";
         }else{
-            std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - middle) / 1000 / 1000  << " Mbps\n";
+            std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - (middle / 1000)) / 1000 / 1000  << " Mbps\n";
         }
         std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";	    //受信パケット数合計
         std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";	    //受信バイト数合計
         if (t.sourceAddress == "7.0.0.2"){
-            std::cout << "  Throughput(LTE): " << i->second.rxBytes * 8.0 / (middle - start) / 1000 / 1000  << " Mbps\n";	//スループット
+            std::cout << "  Throughput(LTE): " << i->second.rxBytes * 8.0 / ((middle / 1000) - start) / 1000 / 1000  << " Mbps\n";	//スループット
         }else{
-            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - middle) / 1000 / 1000  << " Mbps\n";
+            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - (middle / 1000)) / 1000 / 1000  << " Mbps\n";
         }
     }
 
