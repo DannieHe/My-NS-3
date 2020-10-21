@@ -20,6 +20,27 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("Study");
 
+void BandWidthTrace1()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("7Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1170)));
+}
+void BandWidthTrace2()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1638)));
+}
+void BandWidthTrace3()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("3Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2731)));
+}
+void BandWidthTrace4()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("2Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(4084)));
+}
+
 int
 main (int argc, char *argv[])
 {
@@ -27,15 +48,15 @@ main (int argc, char *argv[])
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 15.0;
+	double middle = 5990;
 	double stop = 30.0;
     Time simTime = Seconds (30.0);
     Time simStart1 = Seconds (start);
-    Time simStop1 = Seconds (middle);
-    Time simStart2 = Seconds (middle);
+    Time simStop1 = MilliSeconds (middle);
+    Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MilliSeconds (1.64);
-	Time AdhocInterval = MilliSeconds (3.28);
+    Time LteInterval = MicroSeconds (820);	//10Mbps
+	Time AdhocInterval = MicroSeconds (2731);
     double distance = 90.0;    // m
     double sinkPos = distance * 2 - 20;
     uint32_t packetSize = 1024; //byte
@@ -191,7 +212,6 @@ main (int argc, char *argv[])
 	}
 */
 
-
     /*
      *          LTE
      */
@@ -245,6 +265,12 @@ main (int argc, char *argv[])
     // 分けて書くことで，正しいアドレスに
     // internet.SetRoutingHelper (list);
 
+
+    Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
+    // Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
+    // Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
+    // Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+
     // LTE
     UdpServerHelper LteServer (20);
     ApplicationContainer LteServerApps = LteServer.Install(lteNodes.Get(1));
@@ -259,11 +285,25 @@ main (int argc, char *argv[])
     ApplicationContainer LteClientApps = LteClient.Install(lteNodes.Get(0));
     LteClientApps.Start (simStart1);
     LteClientApps.Stop (simStop1);
+    /*
+    uint16_t ltePort = 1000;
+    OnOffHelper onOff1 ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
+    onOff1.SetConstantRate(DataRate("10Mbps"));
+    onOff1.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    ApplicationContainer lteClientApps = onOff1.Install (lteNodes.Get (0));
+    lteClientApps.Start (simStart1);
+    lteClientApps.Stop (simStop1);
 
+    PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
+    ApplicationContainer lteServerApps = sink1.Install (lteNodes.Get (1));
+    lteServerApps.Start (simStart1);
+    lteServerApps.Stop (simStop1);
+    */
     lteHelper->EnableTraces ();
 
 
     // adhoc
+    
     UdpServerHelper AdhocServer (9);
     ApplicationContainer AdhocServerApps = AdhocServer.Install(ueNodes.Get(sinkNode));
     AdhocServerApps.Start (simStart2);
@@ -277,6 +317,20 @@ main (int argc, char *argv[])
     ApplicationContainer AdhocClientApps = AdhocClient.Install(ueNodes.Get(srcNode));
     AdhocClientApps.Start (simStart2);
     AdhocClientApps.Stop (simStop2);
+    /*
+    uint16_t adhocPort = 1234;
+    OnOffHelper onOff2 ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
+    onOff2.SetConstantRate(DataRate("3Mbps"));
+    onOff2.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    ApplicationContainer adhocClientApps = onOff2.Install (ueNodes.Get (srcNode));
+    adhocClientApps.Start (simStart2);
+    adhocClientApps.Stop (simStop2);
+
+    PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
+    ApplicationContainer adhocServerApps = sink2.Install (ueNodes.Get (sinkNode));
+    adhocServerApps.Start (simStart2);
+    adhocServerApps.Stop (simStop2);
+    */
 
     // Run the simulation
     AnimationInterface anim("test_LTE.xml");
@@ -321,12 +375,18 @@ main (int argc, char *argv[])
         std::cout << "Flow " << i->first << " (" << t.sourceAddress << " -> " << t.destinationAddress << ")\n";
         std::cout << "  Tx Packets: " << i->second.txPackets << "\n";     //フローiの送信パケット数合計
         std::cout << "  Tx Bytes:   " << i->second.txBytes << "\n";	    //送信バイト数合計
-        //std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";
-        std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / 15 / 1000 / 1000  << " Mbps\n";
+        if (t.sourceAddress == "7.0.0.2"){
+            std::cout << "  Tx Offered(LTE): " << i->second.txBytes * 8.0 / (middle - start) / 1000 / 1000  << " Mbps\n";
+        }else{
+            std::cout << "  Tx Offered: " << i->second.txBytes * 8.0 / (stop - middle) / 1000 / 1000  << " Mbps\n";
+        }
         std::cout << "  Rx Packets: " << i->second.rxPackets << "\n";	    //受信パケット数合計
         std::cout << "  Rx Bytes:   " << i->second.rxBytes << "\n";	    //受信バイト数合計
-        //std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - start) / 1000 / 1000  << " Mbps\n";	//スループット
-        std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / 15 / 1000 / 1000  << " Mbps\n";
+        if (t.sourceAddress == "7.0.0.2"){
+            std::cout << "  Throughput(LTE): " << i->second.rxBytes * 8.0 / (middle - start) / 1000 / 1000  << " Mbps\n";	//スループット
+        }else{
+            std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - middle) / 1000 / 1000  << " Mbps\n";
+        }
     }
 
     Simulator::Destroy ();
