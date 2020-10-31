@@ -23,28 +23,28 @@ NS_LOG_COMPONENT_DEFINE("Study");
 void BandWidthTrace1()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("7Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1170)));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2048))); //4Mbps
 }
 void BandWidthTrace2()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1638)));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2731))); //3Mbps
 }
 void BandWidthTrace3()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("3Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2731)));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(4096))); //2Mbps
 }
 void BandWidthTrace4()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("2Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(4084)));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(8192))); //1Mbps
 }
 
 void adhocBandWidth()
 {
-    Time AdhocInterval = MicroSeconds (4084);
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval));
+    Time AdhocInterval = MicroSeconds (4096);
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval)); //2Mbps
 }
 
 int
@@ -54,14 +54,14 @@ main (int argc, char *argv[])
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 9006;
+	double middle = 12897;
 	double stop = 30.0;
     Time simTime = Seconds (30.0);
     Time simStart1 = Seconds (start);
     Time simStop1 = MilliSeconds (middle);
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MicroSeconds (820);	//10Mbps
+    Time LteInterval = MicroSeconds (1638);	//5Mbps
     double distance = 90.0;    // m
     double sinkPos = distance * 3 - 20;
     uint32_t packetSize = 1024; //byte
@@ -272,10 +272,10 @@ main (int argc, char *argv[])
     // internet.SetRoutingHelper (list);
 
 
-    Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
-    Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
-    Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
-    Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+    Simulator::Schedule (Seconds(10) , &BandWidthTrace1);
+    Simulator::Schedule (Seconds(11) , &BandWidthTrace2);
+    Simulator::Schedule (Seconds(12) , &BandWidthTrace3);
+    //Simulator::Schedule (Seconds(13) , &BandWidthTrace4);
     Simulator::Schedule (MilliSeconds(middle) , &adhocBandWidth);
 
     // LTE
@@ -285,7 +285,7 @@ main (int argc, char *argv[])
     LteServerApps.Stop (simStop1);
 
     UdpClientHelper LteClient(lteIpIface.GetAddress(1),20);
-    LteClient.SetAttribute ("MaxPackets", UintegerValue (100000));
+    LteClient.SetAttribute ("MaxPackets", UintegerValue (10000));
     LteClient.SetAttribute ("Interval", TimeValue (LteInterval));
     LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
@@ -317,7 +317,7 @@ main (int argc, char *argv[])
     AdhocServerApps.Stop (simStop2);
 
     UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
-    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (100000));
+    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3431));
     //AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
     AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
