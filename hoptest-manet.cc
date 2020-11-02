@@ -16,81 +16,83 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE ("HopTest");
 
-void
-SetPosition (Ptr<Node> node, Vector position)
-{
-    Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
-    mobility->SetPosition (position);
-}
-
-Vector 
-GetPosition (Ptr<Node> node) 
-{ 
-	Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> (); 
-	return mobility->GetPosition (); 
-} 
-
-void
-AdvancePosition (Ptr<Node> node)
-{
-    Vector pos = GetPosition (node);
-    pos.x += 10.0;
-    SetPosition (node, pos);
-    Simulator::Schedule (Seconds (1.0), AdvancePosition, node);
-}
-
 int
 main (int argc, char *argv[])
 {
+    std::string phyMode ("VhtMcs1");
     uint16_t numNodes = 7;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
     double start = 1.0;
 	double stop = 10.0;
-    Time simTime = Seconds (10.0);
+    Time simTime = Seconds (stop);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MilliSeconds (3.28);
+    Time interPacketInterval = MicroSeconds (156);
     double distance = 90.0;  // m
+    double sinkPos = distance * 3 - 20;
     uint32_t packetSize = 1024; // bytes
     int no_manet = 1;
-    //double txPower = 100.0;
-    int channelwidth =40;
+    int rss = -80;
+
+    // Configure command line parameters
+    CommandLine cmd;
+    cmd.AddValue ("numNodes", "Number of nodes", numNodes);
+    cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
+	cmd.AddValue ("interPacketInterval", "Inter packet interval", interPacketInterval);
+    cmd.AddValue ("distance", "Distance between nodes", distance);
+    cmd.AddValue ("packetSize", "Size of packet", packetSize);
+    cmd.Parse (argc, argv);
+
+    ConfigStore inputConfig;
+    inputConfig.ConfigureDefaults ();
+
+    cmd.Parse(argc, argv);
+
 
     //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
     //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
     //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
-    
-    
-    NodeContainer wifiNodes;
-    wifiNodes.Create(numNodes);
+
+    // disable fragmentation for frames below 2200 bytes
+    // Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
+    // turn off RTS/CTS for frames below 2200 bytes
+    // Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
+    // Set non-unicast data rate to be the same as that of unicast
+    Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
+
+    NodeContainer ueNodes;
+    ueNodes.Create(numNodes);
 
     // The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    // wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211ac);
+    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
+    wifiPhy.Set ("RxGain", DoubleValue (0) );
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
-    //wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
-    //wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
+    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
+    // wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
+    // wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
-                                    "Exponent", DoubleValue (3.0));
+    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(90.1));
+    wifiChannel.AddPropagationLoss ("ns3::FixedRssLossModel","Rss",DoubleValue (rss));
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     // Add a non-QoS upper mac, and disable rate control (i.e. ConstantRateWifiManager)
     WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue ("HtMcs0"),
-                                "ControlMode",StringValue ("HtMcs7"));
-
+                                "DataMode",StringValue (phyMode),
+                                "ControlMode",StringValue (phyMode));
+    
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
-    NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, wifiNodes);
+    NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, ueNodes);
 
     // not Good
     //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
@@ -105,14 +107,14 @@ main (int argc, char *argv[])
     {
         if (i == numNodes - 1)
         {
-            positionAlloc->Add(Vector(distance * 2 - 20, 160, 0));
+            positionAlloc->Add(Vector(sinkPos, 160, 0));
         }else{
             positionAlloc->Add(Vector(distance * i, 150, 0));
         }
     }
     mobility.SetPositionAllocator (positionAlloc);
     mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
-    mobility.Install (wifiNodes);
+    mobility.Install (ueNodes);
 
     AodvHelper aodv;
     OlsrHelper olsr;
@@ -130,7 +132,7 @@ main (int argc, char *argv[])
 
     InternetStackHelper internet;
     internet.SetRoutingHelper (list); // has effect on the next Install ()
-    internet.Install (wifiNodes);
+    internet.Install (ueNodes);
 
     Ipv4AddressHelper ipv4;
     NS_LOG_INFO ("Assign IP Addresses.");
@@ -138,16 +140,16 @@ main (int argc, char *argv[])
     Ipv4InterfaceContainer i = ipv4.Assign (devices);
 
     UdpServerHelper Server (9);
-    ApplicationContainer serverApps = Server.Install(wifiNodes.Get(sinkNode));
+    ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
 
     UdpClientHelper Client(i.GetAddress(sinkNode),9);
-    Client.SetAttribute ("MaxPackets", UintegerValue (10000000));
+    Client.SetAttribute ("MaxPackets", UintegerValue (1000000));
     Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
-    ApplicationContainer clientApps = Client.Install(wifiNodes.Get(srcNode));
+    ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
 /*
@@ -156,16 +158,16 @@ main (int argc, char *argv[])
     ApplicationContainer serverApps;
 
     // PacketSinkHelper PacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
-    // serverApps.Add (PacketSinkHelper.Install (wifiNodes.Get(sinkNode)));
+    // serverApps.Add (PacketSinkHelper.Install (ueNodes.Get(sinkNode)));
     // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    // clientApps.Add (Client.Install (wifiNodes.Get(srcNode)));
+    // clientApps.Add (Client.Install (ueNodes.Get(srcNode)));
     OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
     onOff.SetConstantRate(DataRate("3Mbps"));
     onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    clientApps = onOff.Install (wifiNodes.Get (srcNode));
+    clientApps = onOff.Install (ueNodes.Get (srcNode));
 
     PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
-    serverApps = sink.Install (wifiNodes.Get (sinkNode));
+    serverApps = sink.Install (ueNodes.Get (sinkNode));
 
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
@@ -173,7 +175,7 @@ main (int argc, char *argv[])
     clientApps.Stop (simStop);
 */
     AnimationInterface anim ("adhoc-hop-test.xml");
-    anim.SetMaxPktsPerTraceFile(10000000);
+    // anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata ();
 
     FlowMonitorHelper flowmon;
