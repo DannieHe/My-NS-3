@@ -17,33 +17,25 @@
 
 using namespace ns3;
 
-void
-SetPosition (Ptr<Node> node, Vector position)
+void BandWidthTrace1()
 {
-    Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> ();
-    mobility->SetPosition (position);
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("20Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(600)));
 }
-
-Vector 
-GetPosition (Ptr<Node> node) 
-{ 
-	Ptr<MobilityModel> mobility = node->GetObject<MobilityModel> (); 
-	return mobility->GetPosition (); 
-} 
-
-void
-AdvancePosition (Ptr<Node> node)
+void BandWidthTrace2()
 {
-    Vector pos = GetPosition (node);
-    pos.x += 10.0;
-    SetPosition (node, pos);
-    Simulator::Schedule (Seconds (1.0), AdvancePosition, node);
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("15Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(800)));
 }
-
-void BandWidthTrace()
+void BandWidthTrace3()
 {
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
-    //Config::Set("ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("10Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1200)));
+}
+void BandWidthTrace4()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2400)));
 }
 
 NS_LOG_COMPONENT_DEFINE ("Study");
@@ -52,14 +44,14 @@ int
 main (int argc, char *argv[])
 {
     uint16_t numNodes = 2;
-    uint16_t sourceNode = 0;
+    uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
     double start = 1.0;
 	double stop = 10.0;
     Time simTime = Seconds (10.0);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MilliSeconds (100);
+    Time interPacketInterval = MicroSeconds (820);	//10Mbps
     double distance = 200.0;    // m
     uint32_t packetSize = 1024; //byte
 
@@ -79,12 +71,12 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
     //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
     //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
 
-    //Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
-    //Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
     Ptr<LteHelper> lteHelper = CreateObject<LteHelper> ();
@@ -171,45 +163,48 @@ main (int argc, char *argv[])
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
     }
 
-    Simulator::Schedule (Seconds(5) , &BandWidthTrace);
+    Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
+    Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
+    Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
+    Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
 
-/*
-    UdpServerHelper Server (9);
+
+    UdpServerHelper Server (20);
     ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
 
-    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode),9);
-    Client.SetAttribute ("MaxPackets", UintegerValue (10000));
+    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode),20);
+    Client.SetAttribute ("MaxPackets", UintegerValue (1000000));
     Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
     Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
-    ApplicationContainer clientApps = Client.Install(ueNodes.Get(sourceNode));
+    ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-*/
+/*
     uint16_t dlPort = 1234;
     ApplicationContainer clientApps;
     ApplicationContainer serverApps;
-/*
-    PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
-    serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get(sinkNode)));
-    BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
-    clientApps.Add (dlClient.Install (ueNodes.Get(sourceNode)));
-*/
     OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
     onOff.SetConstantRate(DataRate("10Mbps"));
     onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    clientApps = onOff.Install (ueNodes.Get (sourceNode));
+    clientApps = onOff.Install (ueNodes.Get (srcNode));
 
     PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
     serverApps = sink.Install (ueNodes.Get (sinkNode));
-
 
     serverApps.Start (simStart);
     serverApps.Stop (simStop);
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
+*/
+/*
+    PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get(sinkNode)));
+    BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
+    clientApps.Add (dlClient.Install (ueNodes.Get(srcNode)));
+*/
 
     lteHelper->EnableTraces ();
 
@@ -237,11 +232,6 @@ main (int argc, char *argv[])
 
     FlowMonitorHelper flowmon;
     Ptr<FlowMonitor> monitor = flowmon.InstallAll ();
-
-    // for (int i = 0; i < numNodes; i++)
-    // {
-    //     Simulator::Schedule (Seconds (1.0), AdvancePosition, ueNodes.Get (i*(numNodes-1)));
-    // }
 
     Simulator::Stop (simTime);
     Simulator::Run ();

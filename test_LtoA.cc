@@ -23,49 +23,50 @@ NS_LOG_COMPONENT_DEFINE("Study");
 void BandWidthTrace1()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("7Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2048))); //4Mbps
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(600))); //20Mbps
 }
 void BandWidthTrace2()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2731))); //3Mbps
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(800))); //15Mbps
 }
 void BandWidthTrace3()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("3Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(4096))); //2Mbps
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1200))); //10Mbps
 }
 void BandWidthTrace4()
 {
     // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("2Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(8192))); //1Mbps
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2400))); //5Mbps
 }
 
 void adhocBandWidth()
 {
-    Time AdhocInterval = MicroSeconds (4096);
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval)); //2Mbps
+    Time AdhocInterval = MicroSeconds (1200);
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval)); //10Mbps
 }
 
 int
 main (int argc, char *argv[])
 {
+    std::string phyMode ("VhtMcs1");
     uint16_t numNodes = 7;
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 12897;
-	double stop = 30.0;
+	double middle = 6003.0;
+    double stop = 30.0;
     Time simTime = Seconds (30.0);
     Time simStart1 = Seconds (start);
     Time simStop1 = MilliSeconds (middle);
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MicroSeconds (1638);	//5Mbps
-    double distance = 90.0;    // m
-    double sinkPos = distance * 3 - 20;
-    uint32_t packetSize = 1024; //byte
-    int channelwidth = 40;
+    Time LteInterval = MicroSeconds (400);	//30Mbps
+    double distance = 100.0;    // m
+    double sinkPos = distance * 4 - 20;
+    uint32_t packetSize = 1500; //byte
+    // int channelwidth = 40;
 
     // Configure command line parameters
     CommandLine cmd;
@@ -85,8 +86,8 @@ main (int argc, char *argv[])
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
-    // Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
-    // Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
     // Create UE node
@@ -145,30 +146,28 @@ main (int argc, char *argv[])
 	 *	Ad Hoc
 	 */
     WifiHelper wifi;
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211ac);
+    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
+    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
-                                    "Exponent", DoubleValue (3.0));
+    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(100.1));
+    // wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
+    //                                  "Exponent", DoubleValue (3.0));
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     WifiMacHelper wifiMac;
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue ("HtMcs0"),
-                                "ControlMode",StringValue ("HtMcs7"));
+                                "DataMode",StringValue (phyMode),
+                                "ControlMode",StringValue (phyMode));
 
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer adhocDev = wifi.Install (wifiPhy, wifiMac, ueNodes);
-
-    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
-    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
-
 
 
     MobilityHelper mobility;
@@ -272,10 +271,10 @@ main (int argc, char *argv[])
     // internet.SetRoutingHelper (list);
 
 
-    Simulator::Schedule (Seconds(10) , &BandWidthTrace1);
-    Simulator::Schedule (Seconds(11) , &BandWidthTrace2);
-    Simulator::Schedule (Seconds(12) , &BandWidthTrace3);
-    //Simulator::Schedule (Seconds(13) , &BandWidthTrace4);
+    Simulator::Schedule (Seconds(2) , &BandWidthTrace1);
+    Simulator::Schedule (Seconds(3) , &BandWidthTrace2);
+    Simulator::Schedule (Seconds(4) , &BandWidthTrace3);
+    Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
     Simulator::Schedule (MilliSeconds(middle) , &adhocBandWidth);
 
     // LTE
@@ -317,7 +316,7 @@ main (int argc, char *argv[])
     AdhocServerApps.Stop (simStop2);
 
     UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
-    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3431));
+    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3331));
     //AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
     AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
