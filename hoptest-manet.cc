@@ -19,7 +19,7 @@ NS_LOG_COMPONENT_DEFINE ("HopTest");
 int
 main (int argc, char *argv[])
 {
-    std::string phyMode ("VhtMcs1");
+    std::string phyMode = "HtMcs1";
     uint16_t numNodes = 7;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
@@ -28,12 +28,12 @@ main (int argc, char *argv[])
     Time simTime = Seconds (stop);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MicroSeconds (156);
-    double distance = 90.0;  // m
-    double sinkPos = distance * 3 - 20;
-    uint32_t packetSize = 1024; // bytes
+    Time interPacketInterval = MicroSeconds (1200);
+    double distance = 100.0;  // m
+    double sinkPos = distance * 4 - 20;
+    uint32_t packetSize = 1500; // bytes
     int no_manet = 1;
-    int rss = -80;
+    //int rss = -80;
 
     // Configure command line parameters
     CommandLine cmd;
@@ -49,18 +49,19 @@ main (int argc, char *argv[])
 
     cmd.Parse(argc, argv);
 
-
-    //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
+    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
     //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
     //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
 
+/*
     // disable fragmentation for frames below 2200 bytes
-    // Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
+    Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
     // turn off RTS/CTS for frames below 2200 bytes
-    // Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
+    Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
     // Set non-unicast data rate to be the same as that of unicast
     Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
+*/
 
     NodeContainer ueNodes;
     ueNodes.Create(numNodes);
@@ -68,11 +69,11 @@ main (int argc, char *argv[])
     // The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
     // wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211ac);
-    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    // wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager", "NonUnicastMode", StringValue (phyMode));
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
-    wifiPhy.Set ("RxGain", DoubleValue (0) );
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
     // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
     // wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
@@ -80,24 +81,21 @@ main (int argc, char *argv[])
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(90.1));
-    wifiChannel.AddPropagationLoss ("ns3::FixedRssLossModel","Rss",DoubleValue (rss));
+    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(100.1));
+    //wifiChannel.AddPropagationLoss ("ns3::FixedRssLossModel","Rss",DoubleValue (rss));
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     // Add a non-QoS upper mac, and disable rate control (i.e. ConstantRateWifiManager)
     WifiMacHelper wifiMac;
+    /*
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
                                 "DataMode",StringValue (phyMode),
                                 "ControlMode",StringValue (phyMode));
+    */
     
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer devices = wifi.Install (wifiPhy, wifiMac, ueNodes);
-
-    // not Good
-    //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
-   
-    //Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
 
 
     // Configure mobility
@@ -152,28 +150,24 @@ main (int argc, char *argv[])
     ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-/*
-    uint16_t Port = 1234;
-    ApplicationContainer clientApps;
-    ApplicationContainer serverApps;
 
+    // uint16_t Port = 1234;
     // PacketSinkHelper PacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
     // serverApps.Add (PacketSinkHelper.Install (ueNodes.Get(sinkNode)));
     // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
     // clientApps.Add (Client.Install (ueNodes.Get(srcNode)));
-    OnOffHelper onOff ("ns3::UdpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    onOff.SetConstantRate(DataRate("3Mbps"));
-    onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    clientApps = onOff.Install (ueNodes.Get (srcNode));
+    // OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
+    // onOff.SetConstantRate(DataRate("50Mbps"));
+    // onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    // ApplicationContainer clientApps = onOff.Install (ueNodes.Get (srcNode));
+    // clientApps.Start (simStart);
+    // clientApps.Stop (simStop);
 
-    PacketSinkHelper sink ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
-    serverApps = sink.Install (ueNodes.Get (sinkNode));
+    // PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
+    // ApplicationContainer serverApps = sink.Install (ueNodes.Get (sinkNode));
+    // serverApps.Start (simStart);
+    // serverApps.Stop (simStop);
 
-    serverApps.Start (simStart);
-    serverApps.Stop (simStop);
-    clientApps.Start (simStart);
-    clientApps.Stop (simStop);
-*/
     AnimationInterface anim ("adhoc-hop-test.xml");
     // anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata ();
