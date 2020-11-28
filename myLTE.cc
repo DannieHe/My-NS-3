@@ -51,15 +51,13 @@ main (int argc, char *argv[])
     Time simTime = Seconds (10.0);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MicroSeconds (820);	//10Mbps
     double distance = 200.0;    // m
-    uint32_t packetSize = 1024; //byte
+    uint32_t packetSize = 1500; //byte
 
     // Command line arguments
     CommandLine cmd;
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
     cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
-    cmd.AddValue ("interPacketInterval", "Inter packet interval", interPacketInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
     cmd.Parse (argc, argv);
@@ -71,7 +69,7 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     //LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    //LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
     //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
     //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
 
@@ -163,48 +161,25 @@ main (int argc, char *argv[])
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
     }
 
-    Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
-    Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
-    Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
-    Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+    // Simulator::Schedule (Seconds(5) , &BandWidthTrace1);
+    // Simulator::Schedule (Seconds(6) , &BandWidthTrace2);
+    // Simulator::Schedule (Seconds(7) , &BandWidthTrace3);
+    // Simulator::Schedule (Seconds(8) , &BandWidthTrace4);
+    
 
-
-    UdpServerHelper Server (20);
-    ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
-    serverApps.Start (simStart);
-    serverApps.Stop (simStop);
-
-    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode),20);
-    Client.SetAttribute ("MaxPackets", UintegerValue (1000000));
-    Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
-    Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
-    clientApps.Start (simStart);
-    clientApps.Stop (simStop);
-/*
     uint16_t dlPort = 1234;
-    ApplicationContainer clientApps;
-    ApplicationContainer serverApps;
-    OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
-    onOff.SetConstantRate(DataRate("10Mbps"));
-    onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    clientApps = onOff.Install (ueNodes.Get (srcNode));
-
-    PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
-    serverApps = sink.Install (ueNodes.Get (sinkNode));
-
-    serverApps.Start (simStart);
-    serverApps.Stop (simStop);
+    BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
+    Client.SetAttribute ("MaxBytes", UintegerValue (0));
+    Client.SetAttribute ("SendSize", UintegerValue (1500));
+    ApplicationContainer clientApps = Client.Install (ueNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
-*/
-/*
-    PacketSinkHelper dlPacketSinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
-    serverApps.Add (dlPacketSinkHelper.Install (ueNodes.Get(sinkNode)));
-    BulkSendHelper dlClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), dlPort));
-    clientApps.Add (dlClient.Install (ueNodes.Get(srcNode)));
-*/
+
+    PacketSinkHelper Server ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    ApplicationContainer serverApps = Server.Install (ueNodes.Get(sinkNode));
+    serverApps.Start (simStart);
+    serverApps.Stop (simStop);
+
 
     lteHelper->EnableTraces ();
 
