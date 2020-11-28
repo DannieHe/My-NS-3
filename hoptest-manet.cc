@@ -19,7 +19,7 @@ NS_LOG_COMPONENT_DEFINE ("HopTest");
 int
 main (int argc, char *argv[])
 {
-    std::string phyMode = "HtMcs1";
+    // std::string phyMode = "HtMcs1";
     uint16_t numNodes = 7;
     uint16_t sinkNode = numNodes - 1;    //destination
     uint16_t srcNode = 0;  //source
@@ -28,18 +28,17 @@ main (int argc, char *argv[])
     Time simTime = Seconds (stop);
     Time simStart = Seconds (start);
     Time simStop = Seconds (stop);
-    Time interPacketInterval = MicroSeconds (1200);
     double distance = 100.0;  // m
     double sinkPos = distance * 4 - 20;
     uint32_t packetSize = 1500; // bytes
     int no_manet = 1;
+    int channelwidth = 160;
     //int rss = -80;
 
     // Configure command line parameters
     CommandLine cmd;
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
     cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
-	cmd.AddValue ("interPacketInterval", "Inter packet interval", interPacketInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
     cmd.Parse (argc, argv);
@@ -50,7 +49,7 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    // LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
     //LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
     //LogComponentEnable ("OnOffApplication", LOG_LEVEL_INFO);
 
@@ -68,16 +67,14 @@ main (int argc, char *argv[])
 
     // The below set of helpers will help us to put together the wifi NICs we want
     WifiHelper wifi;
-    // wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
     wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    // wifi.SetStandard (WIFI_PHY_STANDARD_80211g);
     // wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
-    wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager", "NonUnicastMode", StringValue (phyMode));
+    wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
-    // wifiPhy.Set("TxPowerStart", DoubleValue(txPower));
-    // wifiPhy.Set("TxPowerEnd", DoubleValue(txPower));
+    wifiPhy.Set("ChannelWidth", UintegerValue(channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -87,11 +84,11 @@ main (int argc, char *argv[])
 
     // Add a non-QoS upper mac, and disable rate control (i.e. ConstantRateWifiManager)
     WifiMacHelper wifiMac;
-    /*
+    
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue (phyMode),
-                                "ControlMode",StringValue (phyMode));
-    */
+                                "DataMode",StringValue ("HtMcs7"),
+                                "ControlMode",StringValue ("HtMcs1"));
+    
     
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
@@ -137,39 +134,22 @@ main (int argc, char *argv[])
     ipv4.SetBase ("10.1.1.0", "255.255.255.0");
     Ipv4InterfaceContainer i = ipv4.Assign (devices);
 
-    UdpServerHelper Server (9);
-    ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
-    serverApps.Start (simStart);
-    serverApps.Stop (simStop);
-
-    UdpClientHelper Client(i.GetAddress(sinkNode),9);
-    Client.SetAttribute ("MaxPackets", UintegerValue (1000000));
-    Client.SetAttribute ("Interval", TimeValue (interPacketInterval));
-    Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
+    uint16_t dlPort = 1234;
+    BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), dlPort));
+    Client.SetAttribute ("MaxBytes", UintegerValue (0));
+    Client.SetAttribute ("SendSize", UintegerValue (1500));
+    ApplicationContainer clientApps = Client.Install (ueNodes.Get(srcNode));
     clientApps.Start (simStart);
     clientApps.Stop (simStop);
 
-    // uint16_t Port = 1234;
-    // PacketSinkHelper PacketSinkHelper ("ns3::UdpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
-    // serverApps.Add (PacketSinkHelper.Install (ueNodes.Get(sinkNode)));
-    // BulkSendHelper Client ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    // clientApps.Add (Client.Install (ueNodes.Get(srcNode)));
-    // OnOffHelper onOff ("ns3::TcpSocketFactory", InetSocketAddress (i.GetAddress (sinkNode), Port));
-    // onOff.SetConstantRate(DataRate("50Mbps"));
-    // onOff.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    // ApplicationContainer clientApps = onOff.Install (ueNodes.Get (srcNode));
-    // clientApps.Start (simStart);
-    // clientApps.Stop (simStop);
+    PacketSinkHelper Server ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), dlPort));
+    ApplicationContainer serverApps = Server.Install (ueNodes.Get(sinkNode));
+    serverApps.Start (simStart);
+    serverApps.Stop (simStop);
 
-    // PacketSinkHelper sink ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), Port));
-    // ApplicationContainer serverApps = sink.Install (ueNodes.Get (sinkNode));
-    // serverApps.Start (simStart);
-    // serverApps.Stop (simStop);
 
     AnimationInterface anim ("adhoc-hop-test.xml");
-    // anim.SetMaxPktsPerTraceFile(10000000);
+    anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata ();
 
     FlowMonitorHelper flowmon;
