@@ -23,24 +23,24 @@ NS_LOG_COMPONENT_DEFINE("Study");
 int
 main (int argc, char *argv[])
 {
-    std::string phyMode = "DsssRate1Mbps";
+    // std::string phyMode ("VhtMcs1");
     uint16_t numNodes = 7;
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 4889 + 18000 * 2;
-	double stop = 90.0;
+	double middle = 5920;
+	double stop = 30.0;
     Time simTime = Seconds (stop);
     Time simStart1 = Seconds (start);
     Time simStop1 = MilliSeconds (middle);
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MicroSeconds (4094);	//1Mbps
-    Time AdhocInterval = MicroSeconds (4094);
-    double distance = 90.0;    // m
-    double sinkPos = distance * 1 - 20;     //sink position
-    uint32_t packetSize = 1024; //byte
-    int channelwidth = 40;
+    Time LteInterval = MicroSeconds (2400);	//30-10-5Mbps
+    Time AdhocInterval = MicroSeconds (1200);   //10Mbps
+    double distance = 100.0;    // m
+    double sinkPos = distance * 3 - 30;     //sink position
+    uint32_t packetSize = 1500; //byte
+    // int channelwidth = 40;
 
     // Configure command line parameters
     CommandLine cmd;
@@ -59,16 +59,17 @@ main (int argc, char *argv[])
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
     LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
-
+/*
     // disable fragmentation for frames below 2200 bytes
     Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
     // turn off RTS/CTS for frames below 2200 bytes
     Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
     // Set non-unicast data rate to be the same as that of unicast
     Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
+*/
 
-    // Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
-    // Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
     // Create UE node
@@ -125,34 +126,29 @@ main (int argc, char *argv[])
 	 *	Ad Hoc
 	 */
     WifiHelper wifi;
-    // wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
     wifi.SetStandard (WIFI_PHY_STANDARD_80211g);
     wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
+    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(90.1));
+    wifiChannel.AddPropagationLoss ("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(100.1));
     // wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
-                                    // "Exponent", DoubleValue (3.0));
+    //                                  "Exponent", DoubleValue (3.0));
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     WifiMacHelper wifiMac;
-    /*
+/*
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue ("HtMcs0"),
-                                "ControlMode",StringValue ("HtMcs7"));
-    */
+                                "DataMode",StringValue (phyMode),
+                                "ControlMode",StringValue (phyMode));
+*/
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer adhocDev = wifi.Install (wifiPhy, wifiMac, ueNodes);
-
-    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/Phy/ChannelWidth", UintegerValue(40));
-    // Config::Set("/NodeList/*/DeviceList/*/$ns3::WifiNetDevice/HtConfiguration/ShortGuardIntervalSupported", BooleanValue(true));
-
 
 
     MobilityHelper mobility;
@@ -299,7 +295,7 @@ main (int argc, char *argv[])
     LteServerApps.Stop (simStop2);
 
     UdpClientHelper LteClient(lteIpIface.GetAddress(1),20);
-    LteClient.SetAttribute ("MaxPackets", UintegerValue (256));
+    LteClient.SetAttribute ("MaxPackets", UintegerValue (5900));
     LteClient.SetAttribute ("Interval", TimeValue (LteInterval));
     LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
@@ -324,7 +320,7 @@ main (int argc, char *argv[])
 
 
     // Run the simulation
-    AnimationInterface anim("test_LTE.xml");
+    AnimationInterface anim("test_AtoL.xml");
     anim.EnablePacketMetadata();
 
     double x_size = 4.0;

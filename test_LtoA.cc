@@ -55,7 +55,7 @@ main (int argc, char *argv[])
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 6003.0;
+	double middle = 4995.0;
     double stop = 30.0;
     Time simTime = Seconds (30.0);
     Time simStart1 = Seconds (start);
@@ -274,7 +274,7 @@ main (int argc, char *argv[])
     Simulator::Schedule (Seconds(2) , &BandWidthTrace1);
     Simulator::Schedule (Seconds(3) , &BandWidthTrace2);
     Simulator::Schedule (Seconds(4) , &BandWidthTrace3);
-    Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
+    //Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
     Simulator::Schedule (MilliSeconds(middle) , &adhocBandWidth);
 
     // LTE
@@ -316,7 +316,7 @@ main (int argc, char *argv[])
     AdhocServerApps.Stop (simStop2);
 
     UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
-    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3331));
+    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3754));
     //AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
     AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
