@@ -13,8 +13,6 @@
 #include "ns3/ofswitch13-module.h"
 #include "ns3/socket.h"
 #include "ns3/aodv-helper.h"
-#include <string>
-#include <regex>
 
 using namespace ns3;
 
@@ -23,31 +21,25 @@ NS_LOG_COMPONENT_DEFINE("Study");
 int
 main (int argc, char *argv[])
 {
-    // std::string phyMode ("VhtMcs1");
     uint16_t numNodes = 7;
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 5920;
-	double stop = 30.0;
+	double middle = 3920;
+	double stop = 10.0;
     Time simTime = Seconds (stop);
     Time simStart1 = Seconds (start);
     Time simStop1 = MilliSeconds (middle);
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MicroSeconds (2400);	//30-10-5Mbps
-    Time AdhocInterval = MicroSeconds (1200);   //10Mbps
     double distance = 100.0;    // m
-    double sinkPos = distance * 3 - 30;     //sink position
+    double sinkPos = distance * 1 - 20;     //sink position
     uint32_t packetSize = 1500; //byte
-    // int channelwidth = 40;
 
     // Configure command line parameters
     CommandLine cmd;
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
     cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
-    cmd.AddValue ("LteInterval", "Inter packet interval", LteInterval);
-	cmd.AddValue ("AdhocInterval", "Inter packet interval", AdhocInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
     cmd.Parse (argc, argv);
@@ -58,15 +50,7 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
-/*
-    // disable fragmentation for frames below 2200 bytes
-    Config::SetDefault ("ns3::WifiRemoteStationManager::FragmentationThreshold", StringValue ("2200"));
-    // turn off RTS/CTS for frames below 2200 bytes
-    Config::SetDefault ("ns3::WifiRemoteStationManager::RtsCtsThreshold", StringValue ("2200"));
-    // Set non-unicast data rate to be the same as that of unicast
-    Config::SetDefault ("ns3::WifiRemoteStationManager::NonUnicastMode", StringValue (phyMode));
-*/
+    // LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
 
     Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
     Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
@@ -126,12 +110,11 @@ main (int argc, char *argv[])
 	 *	Ad Hoc
 	 */
     WifiHelper wifi;
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211g);
-    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -141,11 +124,11 @@ main (int argc, char *argv[])
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     WifiMacHelper wifiMac;
-/*
+
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue (phyMode),
-                                "ControlMode",StringValue (phyMode));
-*/
+                                "DataMode",StringValue ("HtMcs7"),
+                                "ControlMode",StringValue ("HtMcs1"));
+    
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
     NetDeviceContainer adhocDev = wifi.Install (wifiPhy, wifiMac, ueNodes);
@@ -153,33 +136,17 @@ main (int argc, char *argv[])
 
     MobilityHelper mobility;
     Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-    /*
-	for (int i = 0; i < numNodes; i++)
-    {
-        if (i == numNodes - 1)
-        {
-            positionAlloc->Add(Vector(sinkPos, 160, 0));
-        }else{
-            positionAlloc->Add(Vector(distance * i, 150, 0));
-        }
-    }
-    */
+
     for (int i = 0; i < 2; i++)
     {
         positionAlloc->Add(Vector((distance + 110) * i, 140, 0));
     }
-    /*
-    positionAlloc->Add(Vector(0, 150, 0));
-    positionAlloc->Add(Vector(sinkPos, 160, 0));
-    */
     positionAlloc->Add(Vector(distance + 50, 120, 0));
     positionAlloc->Add(Vector(distance + 50, 80, 0));
 
     mobility.SetPositionAllocator(positionAlloc);
     mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-    // mobility.Install (ueNodes);
     mobility.Install (enbNodes);
-    // mobility.Install (lteNodes);
     mobility.Install (pgw);
     mobility.Install (server);
 
@@ -225,7 +192,6 @@ main (int argc, char *argv[])
     // Assign IP address to UEs, and install applications
     for (uint16_t u = 0; u < 2; u++)
     {
-        //Ptr<Node> lteNode = ueNodes.Get (u*(numNodes-1));
         Ptr<Node> lteNode = lteNodes.Get (u);
         // Set the default gateway for the UE
         Ptr<Ipv4StaticRouting> lteStaticRouting = ipv4RoutingHelper.GetStaticRouting (lteNode->GetObject<Ipv4> ());
@@ -260,67 +226,40 @@ main (int argc, char *argv[])
 
 
     // adhoc
-    UdpServerHelper AdhocServer (9);
-    ApplicationContainer AdhocServerApps = AdhocServer.Install(ueNodes.Get(sinkNode));
-    AdhocServerApps.Start (simStart1);
-    AdhocServerApps.Stop (simStop1);
-
-    UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
-    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (10000));
-    AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
-    AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer AdhocClientApps = AdhocClient.Install(ueNodes.Get(srcNode));
+    uint16_t adhocPort = 10;
+    BulkSendHelper AdhocClient ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
+    AdhocClient.SetAttribute ("MaxBytes", UintegerValue (0));
+    AdhocClient.SetAttribute ("SendSize", UintegerValue (packetSize));
+    ApplicationContainer AdhocClientApps = AdhocClient.Install (ueNodes.Get(srcNode));
     AdhocClientApps.Start (simStart1);
     AdhocClientApps.Stop (simStop1);
-    /*
-    uint16_t adhocPort = 1234;
-    OnOffHelper onOff2 ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
-    onOff2.SetConstantRate(DataRate("3Mbps"));
-    onOff2.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer adhocClientApps = onOff2.Install (ueNodes.Get (srcNode));
-    adhocClientApps.Start (simStart2);
-    adhocClientApps.Stop (simStop2);
 
-    PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
-    ApplicationContainer adhocServerApps = sink2.Install (ueNodes.Get (sinkNode));
-    adhocServerApps.Start (simStart2);
-    adhocServerApps.Stop (simStop2);
-    */
+    PacketSinkHelper AdhocServer ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
+    ApplicationContainer AdhocserverApps = AdhocServer.Install (ueNodes.Get(sinkNode));
+    AdhocserverApps.Start (simStart1);
+    AdhocserverApps.Stop (simStop1);
+
 
     // LTE
-    UdpServerHelper LteServer (20);
-    ApplicationContainer LteServerApps = LteServer.Install(lteNodes.Get(1));
-    LteServerApps.Start (simStart2);
-    LteServerApps.Stop (simStop2);
-
-    UdpClientHelper LteClient(lteIpIface.GetAddress(1),20);
-    LteClient.SetAttribute ("MaxPackets", UintegerValue (5900));
-    LteClient.SetAttribute ("Interval", TimeValue (LteInterval));
-    LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer LteClientApps = LteClient.Install(lteNodes.Get(0));
+    uint16_t ltePort = 20;
+    BulkSendHelper LteClient ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
+    LteClient.SetAttribute ("MaxBytes", UintegerValue (0));
+    LteClient.SetAttribute ("SendSize", UintegerValue (packetSize));
+    ApplicationContainer LteClientApps = LteClient.Install (lteNodes.Get(0));
     LteClientApps.Start (simStart2);
     LteClientApps.Stop (simStop2);
-    /*
-    uint16_t ltePort = 1000;
-    OnOffHelper onOff1 ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
-    onOff1.SetConstantRate(DataRate("10Mbps"));
-    onOff1.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer lteClientApps = onOff1.Install (lteNodes.Get (0));
-    lteClientApps.Start (simStart1);
-    lteClientApps.Stop (simStop1);
 
-    PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
-    ApplicationContainer lteServerApps = sink1.Install (lteNodes.Get (1));
-    lteServerApps.Start (simStart1);
-    lteServerApps.Stop (simStop1);
-    */
+    PacketSinkHelper LteServer ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
+    ApplicationContainer LteserverApps = LteServer.Install (lteNodes.Get(1));
+    LteserverApps.Start (simStart2);
+    LteserverApps.Stop (simStop2);
+
     lteHelper->EnableTraces ();
 
 
     // Run the simulation
     AnimationInterface anim("test_AtoL.xml");
+    anim.SetMaxPktsPerTraceFile(10000000);
     anim.EnablePacketMetadata();
 
     double x_size = 4.0;
