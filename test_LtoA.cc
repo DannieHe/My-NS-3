@@ -13,8 +13,6 @@
 #include "ns3/ofswitch13-module.h"
 #include "ns3/socket.h"
 #include "ns3/aodv-helper.h"
-#include <string>
-#include <regex>
 
 using namespace ns3;
 
@@ -22,58 +20,47 @@ NS_LOG_COMPONENT_DEFINE("Study");
 
 void BandWidthTrace1()
 {
-    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("7Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(600))); //20Mbps
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(75));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(75));
 }
 void BandWidthTrace2()
 {
-    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(800))); //15Mbps
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(50));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(50));
 }
 void BandWidthTrace3()
 {
-    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("3Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1200))); //10Mbps
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(25));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(25));
 }
 void BandWidthTrace4()
 {
-    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("2Mbps"));
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2400))); //5Mbps
-}
-
-void adhocBandWidth()
-{
-    Time AdhocInterval = MicroSeconds (1200);
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(AdhocInterval)); //10Mbps
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(15));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(15));
 }
 
 int
 main (int argc, char *argv[])
 {
-    std::string phyMode ("VhtMcs1");
     uint16_t numNodes = 7;
     uint16_t srcNode = 0;
     uint16_t sinkNode = numNodes - 1;
 	double start = 1.0;
-	double middle = 4995.0;
+	double middle = 3000;
     double stop = 30.0;
-    Time simTime = Seconds (30.0);
+    Time simTime = Seconds (stop);
     Time simStart1 = Seconds (start);
     Time simStop1 = MilliSeconds (middle);
     Time simStart2 = MilliSeconds (middle);
     Time simStop2 = Seconds (stop);
-    Time LteInterval = MicroSeconds (400);	//30Mbps
     double distance = 100.0;    // m
     double sinkPos = distance * 4 - 20;
     uint32_t packetSize = 1500; //byte
-    // int channelwidth = 40;
 
     // Configure command line parameters
     CommandLine cmd;
     cmd.AddValue ("numNodes", "Number of nodes", numNodes);
     cmd.AddValue ("simTime", "Total duration of the simulation", simTime);
-    cmd.AddValue ("LteInterval", "Inter packet interval", LteInterval);
-	//cmd.AddValue ("AdhocInterval", "Inter packet interval", AdhocInterval);
     cmd.AddValue ("distance", "Distance between nodes", distance);
     cmd.AddValue ("packetSize", "Size of packet", packetSize);
     cmd.Parse (argc, argv);
@@ -84,10 +71,10 @@ main (int argc, char *argv[])
     cmd.Parse(argc, argv);
 
     // LogComponentEnable ("UdpClient", LOG_LEVEL_INFO);
-    LogComponentEnable ("UdpServer", LOG_LEVEL_INFO);
+    LogComponentEnable ("PacketSink", LOG_LEVEL_INFO);
 
-    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(100));
-    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(100));
+    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(25));
+    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(25));
     Config::SetDefault("ns3::LteRlcUm::MaxTxBufferSize", UintegerValue(1024 * 1024));
 
     // Create UE node
@@ -96,8 +83,6 @@ main (int argc, char *argv[])
 
     // Add LTE node
     NodeContainer lteNodes;
-    // lteNodes.Add(ueNodes.Get(srcNode));
-    // lteNodes.Add(ueNodes.Get(sinkNode));
     lteNodes.Create (2);
 
     // Create eNB node
@@ -146,12 +131,11 @@ main (int argc, char *argv[])
 	 *	Ad Hoc
 	 */
     WifiHelper wifi;
-    wifi.SetStandard (WIFI_PHY_STANDARD_80211ac);
-    wifi.SetRemoteStationManager ("ns3::AarfWifiManager");
+    wifi.SetStandard (WIFI_PHY_STANDARD_80211n_2_4GHZ);
+    wifi.SetRemoteStationManager ("ns3::MinstrelHtWifiManager");
 
     YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
     wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11_RADIO);
-    // wifiPhy.Set("ChannelWidth", UintegerValue (channelwidth));
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
@@ -161,9 +145,10 @@ main (int argc, char *argv[])
     wifiPhy.SetChannel (wifiChannel.Create ());
 
     WifiMacHelper wifiMac;
+        
     wifi.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
-                                "DataMode",StringValue (phyMode),
-                                "ControlMode",StringValue (phyMode));
+                                "DataMode",StringValue ("HtMcs7"),
+                                "ControlMode",StringValue ("HtMcs1"));
 
     // Set it to adhoc mode
     wifiMac.SetType ("ns3::AdhocWifiMac");
@@ -197,24 +182,6 @@ main (int argc, char *argv[])
     mobility.Install (lteNodes);
     mobility.Install (pgw);
     mobility.Install (server);
-/*
-	mobility.SetMobilityModel("ns3::ConstantVelocityMobilityModel");
-	mobility.Install(ueNodes);
-	for (int i = 0; i < numNodes; i++)
-	{
-		Ptr<ConstantVelocityMobilityModel> ue_mob = ueNodes.Get(i)->GetObject<ConstantVelocityMobilityModel>();
-		if (i % 3 == 0){
-			ue_mob->SetPosition(Vector(distance * (i / 3), 200, 0));
-        }
-        else if (i % 3 == 1){
-			ue_mob->SetPosition(Vector(distance * ((i - 1) / 3) + distance / 2, 170, 0));
-        }
-        else{
-			ue_mob->SetPosition(Vector(distance * ((i - 2) / 3) + distance / 2, 230, 0));
-        }
-		ue_mob->SetVelocity(Vector(10.0, 0.0, 0.0));   
-	}
-*/
 
 
     /*
@@ -222,7 +189,6 @@ main (int argc, char *argv[])
      */
     // Install LTE Devices to the nodes
     NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes);
-    //NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (NodeContainer(ueNodes.Get(srcNode), ueNodes.Get(sinkNode)));
     NetDeviceContainer ueLteDevs = lteHelper->InstallUeDevice (lteNodes);
 
     // Install the IP stack on the UEs
@@ -233,7 +199,6 @@ main (int argc, char *argv[])
     // Assign IP address to UEs, and install applications
     for (uint16_t u = 0; u < 2; u++)
     {
-        //Ptr<Node> lteNode = ueNodes.Get (u*(numNodes-1));
         Ptr<Node> lteNode = lteNodes.Get (u);
         // Set the default gateway for the UE
         Ptr<Ipv4StaticRouting> lteStaticRouting = ipv4RoutingHelper.GetStaticRouting (lteNode->GetObject<Ipv4> ());
@@ -267,79 +232,47 @@ main (int argc, char *argv[])
     Ipv4InterfaceContainer adhocIpIface = address.Assign (adhocDev);
 
 
-    // 分けて書くことで，正しいアドレスに
-    // internet.SetRoutingHelper (list);
+    // Simulator::Schedule (Seconds(2) , &BandWidthTrace1);
+    // Simulator::Schedule (Seconds(3) , &BandWidthTrace2);
+    // Simulator::Schedule (Seconds(4) , &BandWidthTrace3);
+    // Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
 
-
-    Simulator::Schedule (Seconds(2) , &BandWidthTrace1);
-    Simulator::Schedule (Seconds(3) , &BandWidthTrace2);
-    Simulator::Schedule (Seconds(4) , &BandWidthTrace3);
-    //Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
-    Simulator::Schedule (MilliSeconds(middle) , &adhocBandWidth);
 
     // LTE
-    UdpServerHelper LteServer (20);
-    ApplicationContainer LteServerApps = LteServer.Install(lteNodes.Get(1));
+    uint16_t ltePort = 20;
+    BulkSendHelper LteClient ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
+    LteClient.SetAttribute ("MaxBytes", UintegerValue (15000000));
+    LteClient.SetAttribute ("SendSize", UintegerValue (packetSize));
+    ApplicationContainer LteClientApps = LteClient.Install (lteNodes.Get(0));
+    LteClientApps.Start (simStart1);
+    LteClientApps.Stop (simStop1);
+
+    PacketSinkHelper LteServer ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
+    ApplicationContainer LteServerApps = LteServer.Install (lteNodes.Get(1));
     LteServerApps.Start (simStart1);
     LteServerApps.Stop (simStop1);
 
-    UdpClientHelper LteClient(lteIpIface.GetAddress(1),20);
-    LteClient.SetAttribute ("MaxPackets", UintegerValue (10000));
-    LteClient.SetAttribute ("Interval", TimeValue (LteInterval));
-    LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer LteClientApps = LteClient.Install(lteNodes.Get(0));
-    LteClientApps.Start (simStart1);
-    LteClientApps.Stop (simStop1);
-    /*
-    uint16_t ltePort = 1000;
-    OnOffHelper onOff1 ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
-    onOff1.SetConstantRate(DataRate("10Mbps"));
-    onOff1.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer lteClientApps = onOff1.Install (lteNodes.Get (0));
-    lteClientApps.Start (simStart1);
-    lteClientApps.Stop (simStop1);
-
-    PacketSinkHelper sink1 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
-    ApplicationContainer lteServerApps = sink1.Install (lteNodes.Get (1));
-    lteServerApps.Start (simStart1);
-    lteServerApps.Stop (simStop1);
-    */
     lteHelper->EnableTraces ();
 
 
     // adhoc
-    
-    UdpServerHelper AdhocServer (9);
-    ApplicationContainer AdhocServerApps = AdhocServer.Install(ueNodes.Get(sinkNode));
+    uint16_t adhocPort = 10;
+    BulkSendHelper AdhocClient ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
+    AdhocClient.SetAttribute ("MaxBytes", UintegerValue (12582964));
+    AdhocClient.SetAttribute ("SendSize", UintegerValue (packetSize));
+    ApplicationContainer AdhocClientApps = AdhocClient.Install (ueNodes.Get(srcNode));
+    AdhocClientApps.Start (simStart2);
+    AdhocClientApps.Stop (simStop2);
+
+    PacketSinkHelper AdhocServer ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
+    ApplicationContainer AdhocServerApps = AdhocServer.Install (ueNodes.Get(sinkNode));
     AdhocServerApps.Start (simStart2);
     AdhocServerApps.Stop (simStop2);
 
-    UdpClientHelper AdhocClient(adhocIpIface.GetAddress(sinkNode),9);
-    AdhocClient.SetAttribute ("MaxPackets", UintegerValue (3754));
-    //AdhocClient.SetAttribute ("Interval", TimeValue (AdhocInterval));
-    AdhocClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
-
-    ApplicationContainer AdhocClientApps = AdhocClient.Install(ueNodes.Get(srcNode));
-    AdhocClientApps.Start (simStart2);
-    AdhocClientApps.Stop (simStop2);
-    /*
-    uint16_t adhocPort = 1234;
-    OnOffHelper onOff2 ("ns3::TcpSocketFactory", InetSocketAddress (adhocIpIface.GetAddress (sinkNode), adhocPort));
-    onOff2.SetConstantRate(DataRate("3Mbps"));
-    onOff2.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    ApplicationContainer adhocClientApps = onOff2.Install (ueNodes.Get (srcNode));
-    adhocClientApps.Start (simStart2);
-    adhocClientApps.Stop (simStop2);
-
-    PacketSinkHelper sink2 ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), adhocPort));
-    ApplicationContainer adhocServerApps = sink2.Install (ueNodes.Get (sinkNode));
-    adhocServerApps.Start (simStart2);
-    adhocServerApps.Stop (simStop2);
-    */
 
     // Run the simulation
-    AnimationInterface anim("test_LTE.xml");
+    AnimationInterface anim("test_LtoA.xml");
+    anim.SetMaxPktsPerTraceFile(100000000);
     anim.EnablePacketMetadata();
 
     double x_size = 4.0;
@@ -393,6 +326,7 @@ main (int argc, char *argv[])
         }else{
             std::cout << "  Throughput: " << i->second.rxBytes * 8.0 / (stop - (middle / 1000)) / 1000 / 1000  << " Mbps\n";
         }
+        std::cout << "  SumofDelay  " << i->second.delaySum << "\n";
     }
 
     Simulator::Destroy ();
