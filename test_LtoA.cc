@@ -20,23 +20,15 @@ NS_LOG_COMPONENT_DEFINE("Study");
 
 void BandWidthTrace1()
 {
-    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(75));
-    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(75));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("27Mbps"));
 }
 void BandWidthTrace2()
 {
-    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(50));
-    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(50));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("18Mbps"));
 }
 void BandWidthTrace3()
 {
-    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(25));
-    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(25));
-}
-void BandWidthTrace4()
-{
-    Config::SetDefault("ns3::LteEnbNetDevice::UlBandwidth", UintegerValue(15));
-    Config::SetDefault("ns3::LteEnbNetDevice::DlBandwidth", UintegerValue(15));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("9Mbps"));
 }
 
 int
@@ -235,15 +227,15 @@ main (int argc, char *argv[])
     // Simulator::Schedule (Seconds(2) , &BandWidthTrace1);
     // Simulator::Schedule (Seconds(3) , &BandWidthTrace2);
     // Simulator::Schedule (Seconds(4) , &BandWidthTrace3);
-    // Simulator::Schedule (Seconds(5) , &BandWidthTrace4);
 
 
     // LTE
     uint16_t ltePort = 20;
-    BulkSendHelper LteClient ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
-    LteClient.SetAttribute ("MaxBytes", UintegerValue (15000000));
-    LteClient.SetAttribute ("SendSize", UintegerValue (packetSize));
-    ApplicationContainer LteClientApps = LteClient.Install (lteNodes.Get(0));
+    OnOffHelper LteClient ("ns3::TcpSocketFactory", InetSocketAddress (lteIpIface.GetAddress (1), ltePort));
+    LteClient.SetAttribute ("MaxBytes", UintegerValue (9000000));
+    LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
+    LteClient.SetAttribute ("DataRate", StringValue ("35Mbps"));
+    ApplicationContainer LteclientApps = LteClient.Install (lteNodes.Get (0));
     LteClientApps.Start (simStart1);
     LteClientApps.Stop (simStop1);
 
@@ -251,6 +243,7 @@ main (int argc, char *argv[])
     ApplicationContainer LteServerApps = LteServer.Install (lteNodes.Get(1));
     LteServerApps.Start (simStart1);
     LteServerApps.Stop (simStop1);
+
 
     lteHelper->EnableTraces ();
 
