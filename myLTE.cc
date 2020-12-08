@@ -19,15 +19,23 @@ using namespace ns3;
 
 void BandWidthTrace1()
 {
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("27Mbps"));
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("20Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(600)));
 }
 void BandWidthTrace2()
 {
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("18Mbps"));
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("15Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(800)));
 }
 void BandWidthTrace3()
 {
-    Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("9Mbps"));
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("10Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(1200)));
+}
+void BandWidthTrace4()
+{
+    // Config::Set("/NodeList/*/ApplicationList/*/$ns3::OnOffApplication/DataRate", StringValue("5Mbps"));
+    Config::Set("/NodeList/*/ApplicationList/*/$ns3::UdpClient/Interval", TimeValue(MicroSeconds(2400)));
 }
 
 NS_LOG_COMPONENT_DEFINE ("Study");
@@ -153,20 +161,20 @@ main (int argc, char *argv[])
         lteHelper->Attach (ueLteDevs.Get(i), enbLteDevs.Get(i));
     }
 
+    
+    UdpServerHelper Server (20);
+    ApplicationContainer serverApps = Server.Install(ueNodes.Get(sinkNode));
+    serverApps.Start (simStart);
+    serverApps.Stop (simStop);
 
-    uint16_t ltePort = 20;
-    OnOffHelper LteClient ("ns3::TcpSocketFactory", InetSocketAddress (ueIpIface.GetAddress (sinkNode), ltePort));
-    LteClient.SetAttribute ("MaxBytes", UintegerValue (0));
-    LteClient.SetAttribute ("PacketSize", UintegerValue (packetSize));
-    LteClient.SetAttribute ("DataRate", StringValue ("30Mbps"));
-    ApplicationContainer LteClientApps = LteClient.Install (ueNodes.Get (srcNode));
-    LteClientApps.Start (simStart);
-    LteClientApps.Stop (simStop);
+    UdpClientHelper Client(ueIpIface.GetAddress(sinkNode),20);
+    Client.SetAttribute ("MaxPackets", UintegerValue (9000000));
+    Client.SetAttribute ("Interval", TimeValue (MicroSeconds(400)));
+    Client.SetAttribute ("PacketSize", UintegerValue (packetSize));
 
-    PacketSinkHelper LteServer ("ns3::TcpSocketFactory", InetSocketAddress (Ipv4Address::GetAny (), ltePort));
-    ApplicationContainer LteServerApps = LteServer.Install (ueNodes.Get(sinkNode));
-    LteServerApps.Start (simStart);
-    LteServerApps.Stop (simStop);
+    ApplicationContainer clientApps = Client.Install(ueNodes.Get(srcNode));
+    clientApps.Start (simStart);
+    clientApps.Stop (simStop);
 
     
     //Simulator::Schedule (Seconds(3) , &BandWidthTrace1);
