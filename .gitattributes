@@ -1,5 +1,2 @@
-folder/* linguist-vendored  # vendored codeとして認識
-file.cc linguist-vendored=false  # vendored codeから除外
-
-folder/* linguist-documentation  # documentationとして認識
-file.py linguist-documentation=false  # documentationから除外
+* linguist-vendored
+*.cc linguist-vendored=false
